@@ -40,14 +40,14 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
   const testingData = data.slice(trainSize);
   const allData = [...trainingData, ...testingData];
   
-  // Custom formatter for y-axis values
-  const formatYAxis = (value: number) => {
+  // Custom formatter for y-axis values - updated to always return a string
+  const formatYAxis = (value: number): string => {
     if (value >= 1000000) {
       return `${(value / 1000000).toFixed(1)}M`;
     } else if (value >= 1000) {
       return `${(value / 1000).toFixed(0)}K`;
     }
-    return value;
+    return value.toString(); // Convert to string to ensure string return type
   };
   
   // Custom tooltip formatter

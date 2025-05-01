@@ -86,14 +86,14 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <Header />
       <main className="container px-4 py-6 mx-auto max-w-7xl">
         {!data ? (
           <div className="space-y-6">
             <div className="text-center py-12">
               <CalendarClock className="h-16 w-16 text-seer-600 mx-auto mb-4 animate-pulse-slow" />
-              <h1 className="text-3xl font-bold text-seer-900 mb-2">TimeSeer Forecast Kit</h1>
+              <h1 className="text-3xl font-bold text-foreground mb-2">TimeSeer Forecast Kit</h1>
               <p className="text-lg text-muted-foreground max-w-md mx-auto">
                 Upload your time series data to analyze trends and generate accurate forecasts with our advanced ARIMA models.
               </p>
@@ -102,7 +102,7 @@ const Index = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            <h1 className="text-2xl font-bold">Time Series Analysis Dashboard</h1>
+            <h1 className="text-2xl font-bold text-foreground">Time Series Analysis Dashboard</h1>
             
             <div className="grid md:grid-cols-2 gap-6">
               <div>

@@ -58,7 +58,11 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
             <TableHeader>
               <TableRow>
                 {data.columns.map((column) => (
-                  <TableHead key={column} className={column === selectedColumn ? "bg-seer-50" : ""}>
+                  <TableHead 
+                    key={column} 
+                    className={column === selectedColumn ? 
+                      "bg-primary/20 text-primary font-semibold" : ""}
+                  >
                     {column}
                   </TableHead>
                 ))}
@@ -68,7 +72,11 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
               {data.data.slice(0, 5).map((row, i) => (
                 <TableRow key={i}>
                   {data.columns.map((column) => (
-                    <TableCell key={column} className={column === selectedColumn ? "bg-seer-50" : ""}>
+                    <TableCell 
+                      key={column} 
+                      className={column === selectedColumn ? 
+                        "bg-primary/10 font-medium" : ""}
+                    >
                       {column === 'date' ? row[column] : row[column].toLocaleString()}
                     </TableCell>
                   ))}

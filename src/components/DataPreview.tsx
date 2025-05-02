@@ -77,7 +77,11 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
                       className={column === selectedColumn ? 
                         "bg-primary/10 font-medium" : ""}
                     >
-                      {column === 'date' ? row[column] : row[column].toLocaleString()}
+                      {column === 'date' 
+                        ? row[column] 
+                        : row[column] !== null && row[column] !== undefined 
+                          ? row[column].toLocaleString() 
+                          : 'N/A'}
                     </TableCell>
                   ))}
                 </TableRow>

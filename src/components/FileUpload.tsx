@@ -63,18 +63,33 @@ const FileUpload = ({ onFileUploaded }: FileUploadProps) => {
   const parseFile = (file: File) => {
     setIsLoading(true);
     
+    // Enhanced CSV parsing configuration
     Papa.parse(file, {
       header: true,
       dynamicTyping: true,
+      skipEmptyLines: true,
+      delimiter: '', // auto-detect delimiter
+      comments: '#', // skip comment lines
+      error: (error) => {
+        console.error("CSV Parsing Error:", error);
+        toast({
+          title: "Error parsing CSV",
+          description: error.message,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+      },
       complete: (results) => {
+        console.log("CSV Parse Results:", results);
+        
         if (results.errors && results.errors.length > 0) {
+          console.warn("CSV Parse Warnings:", results.errors);
+          // Show warning but continue if there are non-critical errors
           toast({
-            title: "Error parsing CSV",
-            description: results.errors[0].message,
-            variant: "destructive",
+            title: "CSV parsing warnings",
+            description: `${results.errors.length} parsing issues detected but continuing`,
+            variant: "default",
           });
-          setIsLoading(false);
-          return;
         }
         
         if (!results.data || results.data.length === 0) {
@@ -88,35 +103,31 @@ const FileUpload = ({ onFileUploaded }: FileUploadProps) => {
         }
         
         try {
-          // Check if the data has a date column
-          const hasDateColumn = results.data.some((row: any) => row.date || row.Date || row['Date'] || row['date']);
-          
-          if (!hasDateColumn) {
-            // Try to infer the date column by checking column names
-            const possibleDateColumns = Object.keys(results.data[0]).filter(col => 
-              col.toLowerCase().includes('date') || 
-              col.toLowerCase().includes('time') || 
-              /^\d{4}-\d{2}-\d{2}$/.test(col)
-            );
-            
-            if (possibleDateColumns.length === 0) {
-              toast({
-                title: "Missing date column",
-                description: "The CSV must contain a 'date' column or date-formatted column names",
-                variant: "destructive",
-              });
-              setIsLoading(false);
-              return;
-            }
-          }
+          // Log the first row to help with debugging
+          console.log("First data row:", results.data[0]);
+          console.log("Available columns:", Object.keys(results.data[0]));
           
           // Get all columns
           const allColumns = Object.keys(results.data[0]);
           
-          // Find date column
+          if (allColumns.length === 0) {
+            toast({
+              title: "Invalid CSV format",
+              description: "Could not detect columns in the CSV file",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
+          
+          // Find date column - look for date-related columns or use the first column
           let dateColumn = allColumns.find(col => 
             col.toLowerCase() === 'date' || 
-            col.toLowerCase().includes('date')
+            col.toLowerCase().includes('date') ||
+            col.toLowerCase() === 'time' ||
+            col.toLowerCase().includes('time') ||
+            col.toLowerCase() === 'period' ||
+            /^\d{4}-\d{2}-\d{2}$/.test(col) // ISO date format
           ) || allColumns[0];
           
           // Get possible time series columns (non-date columns)
@@ -132,21 +143,47 @@ const FileUpload = ({ onFileUploaded }: FileUploadProps) => {
             return;
           }
           
-          // Determine the date format and get date range
-          let startDate = '';
-          let endDate = '';
+          // Clean up the data - ensure each row has all fields
+          const cleanData = results.data.filter((row: any) => {
+            return typeof row === 'object' && row !== null && Object.keys(row).length > 0;
+          });
           
-          if (results.data.length > 0) {
-            const firstDate = results.data[0][dateColumn];
-            const lastDate = results.data[results.data.length - 1][dateColumn];
-            
-            startDate = firstDate instanceof Date ? 
-              firstDate.toISOString().split('T')[0] : 
-              String(firstDate);
-              
-            endDate = lastDate instanceof Date ? 
-              lastDate.toISOString().split('T')[0] : 
-              String(lastDate);
+          if (cleanData.length === 0) {
+            toast({
+              title: "No valid data rows",
+              description: "After cleaning, no valid data rows were found",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
+          
+          // Ensure date column is present, otherwise try to create it
+          if (!dateColumn || typeof cleanData[0][dateColumn] === 'undefined') {
+            console.log("Could not find date column, adding index as date");
+            // Add an artificial date column if none exists
+            dateColumn = 'date';
+            cleanData.forEach((row: any, index: number) => {
+              const fakeDate = new Date(2023, 0, 1);
+              fakeDate.setDate(fakeDate.getDate() + index);
+              row[dateColumn] = fakeDate.toISOString().split('T')[0];
+            });
+          }
+          
+          // Determine the date range
+          let startDate = cleanData[0][dateColumn];
+          let endDate = cleanData[cleanData.length - 1][dateColumn];
+          
+          if (startDate instanceof Date) {
+            startDate = startDate.toISOString().split('T')[0];
+          } else {
+            startDate = String(startDate);
+          }
+          
+          if (endDate instanceof Date) {
+            endDate = endDate.toISOString().split('T')[0];
+          } else {
+            endDate = String(endDate);
           }
           
           // Create processed data structure
@@ -157,13 +194,15 @@ const FileUpload = ({ onFileUploaded }: FileUploadProps) => {
               start: startDate,
               end: endDate
             },
-            rowCount: results.data.length,
-            data: results.data
+            rowCount: cleanData.length,
+            data: cleanData
           };
+          
+          console.log("Processed data:", processedData);
           
           toast({
             title: "File uploaded successfully",
-            description: `${file.name} has been processed.`,
+            description: `${file.name} has been processed with ${cleanData.length} rows.`,
           });
           
           onFileUploaded(processedData);
@@ -171,20 +210,12 @@ const FileUpload = ({ onFileUploaded }: FileUploadProps) => {
           console.error("Error processing CSV:", error);
           toast({
             title: "Error processing file",
-            description: "There was an error processing the CSV file",
+            description: "There was an error processing the CSV file: " + (error as Error).message,
             variant: "destructive",
           });
         } finally {
           setIsLoading(false);
         }
-      },
-      error: (error) => {
-        toast({
-          title: "Error parsing CSV",
-          description: error.message,
-          variant: "destructive",
-        });
-        setIsLoading(false);
       }
     });
   };

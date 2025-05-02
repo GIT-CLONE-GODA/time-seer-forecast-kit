@@ -9,6 +9,8 @@ import ModelResults from '@/components/ModelResults';
 import { useToast } from '@/components/ui/use-toast';
 import { CalendarClock } from 'lucide-react';
 import { runArimaModel } from '@/api/pythonService';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, XCircle } from 'lucide-react';
 
 const Index = () => {
   const { toast } = useToast();
@@ -18,6 +20,7 @@ const Index = () => {
   const [modelResults, setModelResults] = useState<any | null>(null);
   const [predictions, setPredictions] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleFileUploaded = (fileData: any) => {
     setData(fileData);
@@ -25,6 +28,7 @@ const Index = () => {
     setModelConfig(null);
     setModelResults(null);
     setPredictions(null);
+    setErrorMessage(null);
   };
 
   const handleColumnSelect = (column: string) => {
@@ -32,9 +36,13 @@ const Index = () => {
     setModelConfig(null);
     setModelResults(null);
     setPredictions(null);
+    setErrorMessage(null);
   };
 
   const handleRunModel = async (config: ModelConfig) => {
+    // Reset any previous errors
+    setErrorMessage(null);
+    
     // Show loading toast
     toast({
       title: "Running ARIMA model",
@@ -79,6 +87,8 @@ const Index = () => {
       });
     } catch (error) {
       console.error("Error running model:", error);
+      setErrorMessage(error instanceof Error ? error.message : 'Unknown error occurred');
+      
       toast({
         title: "Error running model",
         description: "There was an error processing your data. Please try again.",
@@ -107,6 +117,16 @@ const Index = () => {
         ) : (
           <div className="space-y-6">
             <h1 className="text-2xl font-bold text-foreground">Time Series Analysis Dashboard</h1>
+            
+            {errorMessage && (
+              <Alert variant="destructive" className="bg-red-100 border-red-200">
+                <XCircle className="h-5 w-5" />
+                <AlertDescription className="flex items-center space-x-2">
+                  <span className="font-medium">Error running model:</span> 
+                  <span>{errorMessage}</span>
+                </AlertDescription>
+              </Alert>
+            )}
             
             <div className="grid md:grid-cols-2 gap-6">
               <div>

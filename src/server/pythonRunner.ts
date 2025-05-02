@@ -18,6 +18,12 @@ export async function runPythonScript(data: any, column: string, config: any): P
       console.log(`Creating temp input file: ${tempFile}`);
       console.log(`Output will be written to: ${outputFile}`);
       
+      // Ensure the data is an array
+      if (!Array.isArray(data)) {
+        console.warn("Data is not an array, wrapping it");
+        data = [data];
+      }
+      
       // Write the input data to the temp file - pass the raw data for Python to process
       const inputData = {
         data: data,
@@ -27,6 +33,7 @@ export async function runPythonScript(data: any, column: string, config: any): P
       
       fs.writeFileSync(tempFile, JSON.stringify(inputData));
       console.log(`Input data written to temp file (${fs.statSync(tempFile).size} bytes)`);
+      console.log("First few records:", JSON.stringify(data.slice(0, 2)));
 
       // Determine the path to the Python script
       const scriptPath = path.resolve(process.cwd(), 'python_scripts', 'main.py');
@@ -84,7 +91,8 @@ export async function runPythonScript(data: any, column: string, config: any): P
         try {
           // Check if output file exists
           if (!fs.existsSync(outputFile)) {
-            reject(new Error(`Output file was not created: ${outputFile}`));
+            console.error(`Output file not found: ${outputFile}`);
+            reject(new Error(`Python script did not create output file. Stdout: ${stdout}, Stderr: ${stderr}`));
             return;
           }
           
@@ -105,6 +113,14 @@ export async function runPythonScript(data: any, column: string, config: any): P
             // Parse and return the results
             const parsedData = JSON.parse(outputData);
             console.log("Successfully parsed Python output");
+            
+            // Check for error in the Python response
+            if (parsedData.error) {
+              console.error('Error from Python script:', parsedData.error);
+              reject(new Error(parsedData.error));
+              return;
+            }
+            
             resolve(parsedData);
           } catch (parseError) {
             console.error('Failed to parse output JSON:', parseError);

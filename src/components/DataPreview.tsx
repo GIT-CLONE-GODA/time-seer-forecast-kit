@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,6 +20,17 @@ interface DataPreviewProps {
 
 const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
   const [selectedColumn, setSelectedColumn] = useState<string>('');
+  
+  useEffect(() => {
+    // Auto-select the first numeric column if none is selected
+    if (!selectedColumn && data.columns.length > 1) {
+      const nonDateCols = data.columns.filter(col => col !== 'date');
+      if (nonDateCols.length > 0) {
+        setSelectedColumn(nonDateCols[0]);
+        onColumnSelect(nonDateCols[0]);
+      }
+    }
+  }, [data, selectedColumn, onColumnSelect]);
   
   // Get non-date columns
   const timeSeriesColumns = data.columns.filter(col => col !== 'date');

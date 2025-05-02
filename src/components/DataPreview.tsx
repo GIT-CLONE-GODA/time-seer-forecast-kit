@@ -30,6 +30,13 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
     onColumnSelect(value);
   };
   
+  // Safe display function for cell values
+  const displayValue = (value: any): string => {
+    if (value === null || value === undefined) return 'N/A';
+    if (typeof value === 'number') return value.toLocaleString();
+    return String(value);
+  };
+  
   return (
     <Card className="w-full">
       <CardHeader className="pb-3">
@@ -77,11 +84,7 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
                       className={column === selectedColumn ? 
                         "bg-primary/10 font-medium" : ""}
                     >
-                      {column === 'date' 
-                        ? row[column] 
-                        : row[column] !== null && row[column] !== undefined 
-                          ? row[column].toLocaleString() 
-                          : 'N/A'}
+                      {displayValue(row[column])}
                     </TableCell>
                   ))}
                 </TableRow>

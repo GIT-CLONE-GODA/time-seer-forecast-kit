@@ -13,22 +13,10 @@ export async function runArimaModel(data: any, column: string, config: any) {
   try {
     console.log("Sending request to run ARIMA model:", { column, config });
     
-    // Format date values consistently for backend processing
-    const formattedData = data.data.map((row: any) => {
-      const formattedRow = { ...row };
-      // If there's a date column, ensure it has a consistent format
-      if (row.date) {
-        const dateValue = row.date instanceof Date 
-          ? row.date.toISOString().split('T')[0] 
-          : String(row.date);
-        formattedRow.date = dateValue;
-      }
-      return formattedRow;
-    });
-
-    // Prepare the request data
+    // We'll send the raw data to the Python backend as-is
+    // The Python script will handle all the preprocessing
     const requestData = {
-      data: formattedData,
+      data: data.data,
       column,
       config: {
         trainSize: config.trainSize,

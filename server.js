@@ -29,7 +29,7 @@ app.post('/api/run-arima', async (req, res) => {
     const tempFile = path.join(tempDir, `arima_input_${Date.now()}.json`);
     const outputFile = path.join(tempDir, `arima_output_${Date.now()}.json`);
     
-    // Write the input data to the temp file
+    // Write the input data to the temp file - passing raw data for Python to process
     fs.writeFileSync(tempFile, JSON.stringify({
       data,
       column,
@@ -85,7 +85,16 @@ app.post('/api/run-arima', async (req, res) => {
 
       try {
         // Read the output file
+        if (!fs.existsSync(outputFile)) {
+          console.error('Output file does not exist:', outputFile);
+          return res.status(500).json({
+            error: 'Python script did not generate output file',
+            details: stdout + '\n' + stderr
+          });
+        }
+        
         const outputData = fs.readFileSync(outputFile, 'utf8');
+        console.log('Output data read from file:', outputData.substring(0, 200) + '...');
         
         // Clean up the output temp file
         try {
@@ -95,12 +104,20 @@ app.post('/api/run-arima', async (req, res) => {
         }
 
         // Parse and return the results
-        const results = JSON.parse(outputData);
-        res.json(results);
+        try {
+          const results = JSON.parse(outputData);
+          res.json(results);
+        } catch (parseError) {
+          console.error('Failed to parse output JSON:', parseError);
+          return res.status(500).json({
+            error: 'Failed to parse Python output',
+            details: outputData.substring(0, 1000)
+          });
+        }
       } catch (error) {
-        console.error('Failed to parse Python output:', error);
+        console.error('Failed to process Python output:', error);
         res.status(500).json({ 
-          error: 'Failed to parse Python output',
+          error: 'Failed to process Python output',
           details: error.message 
         });
       }

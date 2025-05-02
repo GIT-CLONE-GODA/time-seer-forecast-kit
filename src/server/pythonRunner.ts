@@ -18,7 +18,7 @@ export async function runPythonScript(data: any, column: string, config: any): P
       console.log(`Creating temp input file: ${tempFile}`);
       console.log(`Output will be written to: ${outputFile}`);
       
-      // Write the input data to the temp file
+      // Write the input data to the temp file - pass the raw data for Python to process
       const inputData = {
         data: data,
         column: column,

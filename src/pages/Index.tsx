@@ -8,6 +8,7 @@ import ModelConfiguration, { ModelConfig } from '@/components/ModelConfiguration
 import ModelResults from '@/components/ModelResults';
 import { useToast } from '@/components/ui/use-toast';
 import { CalendarClock } from 'lucide-react';
+import { runArimaModel } from '@/api/pythonService';
 
 const Index = () => {
   const { toast } = useToast();
@@ -16,6 +17,7 @@ const Index = () => {
   const [modelConfig, setModelConfig] = useState<ModelConfig | null>(null);
   const [modelResults, setModelResults] = useState<any | null>(null);
   const [predictions, setPredictions] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleFileUploaded = (fileData: any) => {
     setData(fileData);
@@ -32,47 +34,40 @@ const Index = () => {
     setPredictions(null);
   };
 
-  const handleRunModel = (config: ModelConfig) => {
-    // Simulate model running with a toast
+  const handleRunModel = async (config: ModelConfig) => {
+    // Show loading toast
     toast({
       title: "Running ARIMA model",
       description: "Please wait while we process your data...",
     });
+    
+    setIsLoading(true);
 
-    // Simulate async model execution
-    setTimeout(() => {
-      // Generate mock results
-      const mockResults = {
-        rmse: 0.05 + Math.random() * 0.1,
-        mae: 0.03 + Math.random() * 0.08,
-        r2: 0.75 + Math.random() * 0.2,
-        accuracy: 0.8 + Math.random() * 0.15
-      };
-
-      // Generate mock predictions
-      const testSize = Math.floor(data.data.length * (1 - config.trainSize));
-      const mockForecast = data.data.slice(-testSize).map((point: any, i: number) => {
-        // Create a somewhat realistic forecast with some error
-        const actual = point[selectedColumn];
-        const error = (Math.random() - 0.5) * 0.1; // +/- 5% error
-        return actual * (1 + error);
-      });
-
+    try {
+      // Run the ARIMA model using the Python service
+      const result = await runArimaModel(data, selectedColumn, config);
+      
       // Save model configuration, results, and predictions
       setModelConfig(config);
-      setModelResults(mockResults);
+      setModelResults({
+        rmse: result.metrics.rmse,
+        mae: result.metrics.mae,
+        r2: result.metrics.r2,
+        accuracy: result.metrics.accuracy || 0.85
+      });
+      
       setPredictions({
-        forecast: mockForecast,
-        dates: data.data.slice(-testSize).map((point: any) => point.date)
+        forecast: result.forecast,
+        dates: result.dates
       });
 
-      // Add forecast values to the data
+      // Update the data with forecast values
       const updatedData = [...data.data];
-      const trainSize = Math.floor(data.data.length * config.trainSize);
-      mockForecast.forEach((value: number, i: number) => {
-        if (trainSize + i < updatedData.length) {
-          updatedData[trainSize + i] = {
-            ...updatedData[trainSize + i],
+      result.forecast.forEach((value: number, i: number) => {
+        const index = data.data.findIndex((d: any) => d.date === result.dates[i]);
+        if (index !== -1) {
+          updatedData[index] = {
+            ...updatedData[index],
             [`${selectedColumn}_forecast`]: value
           };
         }
@@ -82,7 +77,16 @@ const Index = () => {
         title: "Model execution complete",
         description: "Your ARIMA model has been successfully trained and evaluated.",
       });
-    }, 1500);
+    } catch (error) {
+      console.error("Error running model:", error);
+      toast({
+        title: "Error running model",
+        description: "There was an error processing your data. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -111,7 +115,7 @@ const Index = () => {
               
               {selectedColumn && (
                 <div>
-                  <ModelConfiguration onRunModel={handleRunModel} />
+                  <ModelConfiguration onRunModel={handleRunModel} isLoading={isLoading} />
                 </div>
               )}
             </div>

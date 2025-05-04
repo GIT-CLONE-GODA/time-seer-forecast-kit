@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,17 +21,6 @@ interface DataPreviewProps {
 const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
   const [selectedColumn, setSelectedColumn] = useState<string>('');
   
-  useEffect(() => {
-    // Auto-select the first numeric column if none is selected
-    if (!selectedColumn && data.columns.length > 1) {
-      const nonDateCols = data.columns.filter(col => col !== 'date');
-      if (nonDateCols.length > 0) {
-        setSelectedColumn(nonDateCols[0]);
-        onColumnSelect(nonDateCols[0]);
-      }
-    }
-  }, [data, selectedColumn, onColumnSelect]);
-  
   // Get non-date columns
   const timeSeriesColumns = data.columns.filter(col => col !== 'date');
   
@@ -39,13 +28,6 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
   const handleColumnChange = (value: string) => {
     setSelectedColumn(value);
     onColumnSelect(value);
-  };
-  
-  // Safe display function for cell values
-  const displayValue = (value: any): string => {
-    if (value === null || value === undefined) return 'N/A';
-    if (typeof value === 'number') return value.toLocaleString();
-    return String(value);
   };
   
   return (
@@ -95,7 +77,7 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
                       className={column === selectedColumn ? 
                         "bg-primary/10 font-medium" : ""}
                     >
-                      {displayValue(row[column])}
+                      {column === 'date' ? row[column] : row[column].toLocaleString()}
                     </TableCell>
                   ))}
                 </TableRow>

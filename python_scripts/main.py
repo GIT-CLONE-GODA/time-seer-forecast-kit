@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,10 +8,6 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from pmdarima.arima import auto_arima
 import math
 import re
-import json
-import os
-import sys
-import argparse
 from datetime import datetime
 import warnings
 warnings.filterwarnings('ignore')
@@ -64,7 +59,7 @@ class ARIMATimeSeriesAnalyzer:
         data_source : pandas.DataFrame or str
             DataFrame containing time series data or a path to a CSV file
         """
-        if isinstance(data_source, str) and data_source.endswith('.csv'):
+        if isinstance(data_source, str):
             cls._df = pd.read_csv(data_source)
             date_cols = cls._df.columns[cls._df.columns.get_loc("2015-01-31"):]
             data_subset = cls._df[["RegionName"] + list(date_cols)]
@@ -73,24 +68,9 @@ class ARIMATimeSeriesAnalyzer:
             cleaned = melted.pivot(index="date", columns="RegionName", values="value").dropna(axis=1)
             cls._df = cleaned
             print(f"Loaded data from {data_source}")
-        elif isinstance(data_source, pd.DataFrame):
+        else:
             cls._df = data_source
             print("Loaded data from provided DataFrame")
-        elif isinstance(data_source, list):
-            # Handle list of dictionaries (e.g., from JSON)
-            try:
-                cls._df = pd.DataFrame(data_source)
-                print("Loaded data from provided list")
-            except Exception as e:
-                print(f"Error loading data from list: {str(e)}")
-                raise
-        else:
-            # Try to convert the data_source to a DataFrame
-            try:
-                cls._df = pd.DataFrame(data_source)
-                print("Loaded data from provided data source")
-            except:
-                raise ValueError("Unsupported data source type")
         
         return cls
     
@@ -445,191 +425,54 @@ class ARIMATimeSeriesAnalyzer:
         
         return results
 
-    def run_api_analysis(self, data, column, config):
-        """
-        Run ARIMA analysis for API mode and return results in a structured format
-        
-        Parameters:
-        -----------
-        data : list of dict
-            Time series data in JSON format
-        column : str
-            Column to analyze
-        config : dict
-            Model configuration with parameters
-            
-        Returns:
-        --------
-        dict
-            Results of the analysis including metrics and forecast
-        """
-        try:
-            # Load data from the provided data (list of dictionaries)
-            self.load_data(data)
-            
-            # Select the column to analyze
-            self.select_column(column)
-            
-            # Split data using the provided train_size
-            train_size = config.get('trainSize', 0.8)
-            self.split_data(train_size=train_size, plot=False)
-            
-            # Choose model type and fit
-            model_type = config.get('modelType', 'auto')
-            forecast = None
-            metrics = {}
-            
-            if model_type == 'auto':
-                # Fit auto ARIMA
-                seasonal = config.get('seasonal', False)
-                seasonal_period = config.get('seasonalPeriod', 12)
-                self.fit_auto_arima(seasonal=seasonal, m=seasonal_period)
-                forecast = self.auto_forecast(plot=False)
-            else:
-                # Fit manual ARIMA with specified order
-                p = config.get('order', {}).get('p', 1)
-                d = config.get('order', {}).get('d', 1)
-                q = config.get('order', {}).get('q', 1)
-                self.fit_arima(order=(p, d, q))
-                forecast = self.forecast(plot=False)
-            
-            # Calculate metrics
-            rmse = np.sqrt(mean_squared_error(self.ts_test, forecast))
-            mae = mean_absolute_error(self.ts_test, forecast)
-            r2 = r2_score(self.ts_test, forecast)
-            
-            # Get forecast dates (test period dates)
-            test_dates = self.ts_test.index.strftime('%Y-%m-%d').tolist()
-            
-            # Return results as a dictionary
-            return {
-                'metrics': {
-                    'rmse': float(rmse),
-                    'mae': float(mae),
-                    'r2': float(r2),
-                    'accuracy': float(0.85 + (r2 * 0.1))  # Simple accuracy estimate
-                },
-                'forecast': forecast.tolist(),
-                'dates': test_dates,
-                'config': {
-                    'modelType': model_type,
-                    'trainSize': train_size,
-                    'order': config.get('order', {'p': 1, 'd': 1, 'q': 1}) if model_type == 'manual' else None,
-                    'seasonal': config.get('seasonal', False),
-                    'seasonalPeriod': config.get('seasonalPeriod', 12)
-                }
-            }
-            
-        except Exception as e:
-            return {
-                'error': str(e),
-                'metrics': {
-                    'rmse': 0,
-                    'mae': 0,
-                    'r2': 0,
-                    'accuracy': 0
-                },
-                'forecast': [],
-                'dates': []
-            }
 
-
-# Add argument parsing for API mode
-def parse_args():
-    parser = argparse.ArgumentParser(description='Run ARIMA Time Series Analysis')
-    parser.add_argument('--input', type=str, help='Path to input JSON file')
-    parser.add_argument('--output', type=str, help='Path to output JSON file')
-    parser.add_argument('--mode', type=str, default='standard', choices=['standard', 'api'],
-                        help='Run mode: standard or api')
-    return parser.parse_args()
-
-
+# Example usage
 if __name__ == "__main__":
-    args = parse_args()
+    # Load data from CSV file once
+    ARIMATimeSeriesAnalyzer.load_data('Metro_zori_uc_sfrcondomfr_sm_month(1).csv')
     
-    if args.mode == 'api':
-        if not args.input or not args.output:
-            print("Error: --input and --output are required in API mode")
-            sys.exit(1)
-        
-        try:
-            # Load data from input JSON file
-            with open(args.input, 'r') as f:
-                input_data = json.load(f)
-            
-            # Extract parameters
-            data = input_data.get('data', [])
-            column = input_data.get('column', '')
-            config = input_data.get('config', {})
-            
-            # Run analysis
-            analyzer = ARIMATimeSeriesAnalyzer()
-            results = analyzer.run_api_analysis(data, column, config)
-            
-            # Write results to output file
-            with open(args.output, 'w') as f:
-                json.dump(results, f)
-            
-            print(f"Analysis complete. Results saved to {args.output}")
-        
-        except Exception as e:
-            print(f"Error in API mode: {str(e)}")
-            # Write error to output file
-            with open(args.output, 'w') as f:
-                json.dump({
-                    'error': str(e),
-                    'metrics': {
-                        'rmse': 0,
-                        'mae': 0,
-                        'r2': 0,
-                        'accuracy': 0
-                    },
-                    'forecast': [],
-                    'dates': []
-                }, f)
-            sys.exit(1)
+    # Create an instance for Los Angeles
+    la_analyzer = ARIMATimeSeriesAnalyzer(column='Austin, TX')
     
-    else:
-        # Example usage for standard mode
-        # Load data from CSV file once
-        ARIMATimeSeriesAnalyzer.load_data('Metro_zori_uc_sfrcondomfr_sm_month(1).csv')
-        
-        # Create an instance for a city
-        analyzer = ARIMATimeSeriesAnalyzer(column='Austin, TX')
-        
-        # Plot the original time series
-        analyzer.plot_time_series()
-        
-        # Split data into training and testing sets
-        analyzer.split_data(train_size=0.85)
-        
-        # Check stationarity of the original series
-        print("Stationarity check of original series:")
-        analyzer.check_stationarity()
-        
-        # Apply differencing and check stationarity again
-        analyzer.difference_series()
-        
-        # Plot ACF and PACF
-        analyzer.plot_acf_pacf()
-        
-        # Fit a manual ARIMA model
-        analyzer.fit_arima(order=(1, 1, 1))
-        
-        # Plot residuals
-        analyzer.plot_residuals()
-        
-        # Generate forecasts
-        analyzer.forecast()
-        
-        # Fit an auto ARIMA model
-        analyzer.fit_auto_arima()
-        
-        # Generate forecasts from the auto ARIMA model
-        analyzer.auto_forecast()
-        
-        # Evaluate both models
-        metrics = analyzer.evaluate_models()
-        print("\nModel Comparison:")
-        for model, values in metrics.items():
-            print(f"{model}: RMSE={values['RMSE']:.4f}, MAE={values['MAE']:.4f}, R²={values['R²']:.4f}")
+    # Plot the original time series
+    la_analyzer.plot_time_series()
+    
+    # Split data into training and testing sets
+    la_analyzer.split_data(train_size=0.85)
+    
+    # Check stationarity of the original series
+    print("Stationarity check of original series:")
+    la_analyzer.check_stationarity()
+    
+    # Apply differencing and check stationarity again
+    la_analyzer.difference_series()
+    
+    # Plot ACF and PACF
+    la_analyzer.plot_acf_pacf()
+    
+    # Fit a manual ARIMA model
+    la_analyzer.fit_arima(order=(1, 1, 1))
+    
+    # Plot residuals
+    la_analyzer.plot_residuals()
+    
+    # Generate forecasts
+    la_analyzer.forecast()
+    
+    # Fit an auto ARIMA model
+    la_analyzer.fit_auto_arima()
+    
+    # Generate forecasts from the auto ARIMA model
+    la_analyzer.auto_forecast()
+    
+    # Evaluate both models
+    metrics = la_analyzer.evaluate_models()
+    print("\nModel Comparison:")
+    for model, values in metrics.items():
+        print(f"{model}: RMSE={values['RMSE']:.4f}, MAE={values['MAE']:.4f}, R²={values['R²']:.4f}")
+    
+    # Create another instance for a different city
+    print("\n\nAnalyzing a different city:")
+    # ny_analyzer = ARIMATimeSeriesAnalyzer(column='Dallas, TX')
+    # ny_analyzer.plot_time_series()
+    # ny_analyzer.split_data(train_size=0.8)

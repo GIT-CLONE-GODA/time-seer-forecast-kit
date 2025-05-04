@@ -8,9 +8,6 @@ import ModelConfiguration, { ModelConfig } from '@/components/ModelConfiguration
 import ModelResults from '@/components/ModelResults';
 import { useToast } from '@/components/ui/use-toast';
 import { CalendarClock } from 'lucide-react';
-import { runArimaModel } from '@/api/pythonService';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, XCircle } from 'lucide-react';
 
 const Index = () => {
   const { toast } = useToast();
@@ -19,8 +16,6 @@ const Index = () => {
   const [modelConfig, setModelConfig] = useState<ModelConfig | null>(null);
   const [modelResults, setModelResults] = useState<any | null>(null);
   const [predictions, setPredictions] = useState<any | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleFileUploaded = (fileData: any) => {
     setData(fileData);
@@ -28,7 +23,6 @@ const Index = () => {
     setModelConfig(null);
     setModelResults(null);
     setPredictions(null);
-    setErrorMessage(null);
   };
 
   const handleColumnSelect = (column: string) => {
@@ -36,46 +30,49 @@ const Index = () => {
     setModelConfig(null);
     setModelResults(null);
     setPredictions(null);
-    setErrorMessage(null);
   };
 
-  const handleRunModel = async (config: ModelConfig) => {
-    // Reset any previous errors
-    setErrorMessage(null);
-    
-    // Show loading toast
+  const handleRunModel = (config: ModelConfig) => {
+    // Simulate model running with a toast
     toast({
       title: "Running ARIMA model",
       description: "Please wait while we process your data...",
     });
-    
-    setIsLoading(true);
 
-    try {
-      // Run the ARIMA model using the Python service
-      const result = await runArimaModel(data, selectedColumn, config);
-      
+    // Simulate async model execution
+    setTimeout(() => {
+      // Generate mock results
+      const mockResults = {
+        rmse: 0.05 + Math.random() * 0.1,
+        mae: 0.03 + Math.random() * 0.08,
+        r2: 0.75 + Math.random() * 0.2,
+        accuracy: 0.8 + Math.random() * 0.15
+      };
+
+      // Generate mock predictions
+      const testSize = Math.floor(data.data.length * (1 - config.trainSize));
+      const mockForecast = data.data.slice(-testSize).map((point: any, i: number) => {
+        // Create a somewhat realistic forecast with some error
+        const actual = point[selectedColumn];
+        const error = (Math.random() - 0.5) * 0.1; // +/- 5% error
+        return actual * (1 + error);
+      });
+
       // Save model configuration, results, and predictions
       setModelConfig(config);
-      setModelResults({
-        rmse: result.metrics.rmse,
-        mae: result.metrics.mae,
-        r2: result.metrics.r2,
-        accuracy: result.metrics.accuracy || 0.85
-      });
-      
+      setModelResults(mockResults);
       setPredictions({
-        forecast: result.forecast,
-        dates: result.dates
+        forecast: mockForecast,
+        dates: data.data.slice(-testSize).map((point: any) => point.date)
       });
 
-      // Update the data with forecast values
+      // Add forecast values to the data
       const updatedData = [...data.data];
-      result.forecast.forEach((value: number, i: number) => {
-        const index = data.data.findIndex((d: any) => d.date === result.dates[i]);
-        if (index !== -1) {
-          updatedData[index] = {
-            ...updatedData[index],
+      const trainSize = Math.floor(data.data.length * config.trainSize);
+      mockForecast.forEach((value: number, i: number) => {
+        if (trainSize + i < updatedData.length) {
+          updatedData[trainSize + i] = {
+            ...updatedData[trainSize + i],
             [`${selectedColumn}_forecast`]: value
           };
         }
@@ -85,18 +82,7 @@ const Index = () => {
         title: "Model execution complete",
         description: "Your ARIMA model has been successfully trained and evaluated.",
       });
-    } catch (error) {
-      console.error("Error running model:", error);
-      setErrorMessage(error instanceof Error ? error.message : 'Unknown error occurred');
-      
-      toast({
-        title: "Error running model",
-        description: "There was an error processing your data. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    }, 1500);
   };
 
   return (
@@ -118,16 +104,6 @@ const Index = () => {
           <div className="space-y-6">
             <h1 className="text-2xl font-bold text-foreground">Time Series Analysis Dashboard</h1>
             
-            {errorMessage && (
-              <Alert variant="destructive" className="bg-red-100 border-red-200">
-                <XCircle className="h-5 w-5" />
-                <AlertDescription className="flex items-center space-x-2">
-                  <span className="font-medium">Error running model:</span> 
-                  <span>{errorMessage}</span>
-                </AlertDescription>
-              </Alert>
-            )}
-            
             <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <DataPreview data={data} onColumnSelect={handleColumnSelect} />
@@ -135,7 +111,7 @@ const Index = () => {
               
               {selectedColumn && (
                 <div>
-                  <ModelConfiguration onRunModel={handleRunModel} isLoading={isLoading} />
+                  <ModelConfiguration onRunModel={handleRunModel} />
                 </div>
               )}
             </div>

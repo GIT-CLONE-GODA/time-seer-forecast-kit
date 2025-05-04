@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 
 interface DataPreviewProps {
   data: {
@@ -41,7 +42,12 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
     <Card className="w-full">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center justify-between">
-          <span>Data Preview: {data.fileName}</span>
+          <div className="flex items-center gap-2">
+            <span>Data Preview:</span>
+            <Badge variant="outline" className="font-normal">
+              {data.fileName}
+            </Badge>
+          </div>
           <div className="flex items-center space-x-2">
             <span className="text-sm font-normal text-muted-foreground">Select column to analyze:</span>
             <Select onValueChange={handleColumnChange} value={selectedColumn}>
@@ -97,8 +103,9 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
             </TableBody>
           </Table>
         </div>
-        <div className="mt-2 text-xs text-muted-foreground">
-          Showing 5 of {data.rowCount} rows • Date range: {data.dateRange.start} to {data.dateRange.end}
+        <div className="mt-2 text-xs text-muted-foreground flex justify-between">
+          <span>Showing 5 of {data.rowCount} rows</span>
+          <span>Date range: {data.dateRange.start} to {data.dateRange.end}</span>
         </div>
       </CardContent>
     </Card>

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -23,6 +23,13 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
   
   // Get non-date columns
   const timeSeriesColumns = data.columns.filter(col => col !== 'date');
+  
+  // Auto-select the first column on initial load if none selected
+  useEffect(() => {
+    if (!selectedColumn && timeSeriesColumns.length > 0) {
+      handleColumnChange(timeSeriesColumns[0]);
+    }
+  }, [timeSeriesColumns]);
   
   // Handle column selection
   const handleColumnChange = (value: string) => {
@@ -78,7 +85,11 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
                         "bg-primary/10 font-medium" : ""}
                     >
                       {column === 'date' ? row[column] : 
-                        row[column] != null ? row[column].toLocaleString() : 'N/A'}
+                        row[column] != null && !isNaN(row[column]) ? 
+                          typeof row[column] === 'number' ? 
+                            row[column].toLocaleString() : 
+                            row[column] : 
+                          'N/A'}
                     </TableCell>
                   ))}
                 </TableRow>

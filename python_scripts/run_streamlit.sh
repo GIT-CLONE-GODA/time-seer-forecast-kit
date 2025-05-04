@@ -2,7 +2,7 @@
 #!/bin/bash
 
 # Install required packages
-pip install -r requirements.txt
+pip install -r python_scripts/requirements.txt
 
 # Run the Streamlit app
-streamlit run streamlit_app.py
+streamlit run python_scripts/streamlit_app.py

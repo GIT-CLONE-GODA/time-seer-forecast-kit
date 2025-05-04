@@ -45,22 +45,60 @@ class ARIMATimeSeriesAnalyzerStreamlit:
     @classmethod
     def load_data(cls, data_source):
         """Load time series data from a DataFrame or CSV file."""
-        if isinstance(data_source, str):
-            cls._df = pd.read_csv(data_source)
-            date_cols = [col for col in cls._df.columns if re.match(r'\d{4}-\d{2}-\d{2}', col)]
+        try:
+            if isinstance(data_source, str):
+                cls._df = pd.read_csv(data_source)
+            else:
+                # Handle UploadedFile from Streamlit
+                cls._df = pd.read_csv(data_source)
+                
+            # Check if we need to reshape/preprocess the data
+            date_cols = [col for col in cls._df.columns if re.search(r'^\d{4}-\d{2}-\d{2}$', str(col))]
             
             if date_cols:
-                data_subset = cls._df[["RegionName"] + date_cols]
+                st.info("Detected date columns, reshaping data...")
+                # Get non-date columns (potential ID columns)
+                id_cols = [col for col in cls._df.columns if col not in date_cols]
+                
+                if not id_cols:  # If no ID columns, use index as ID
+                    id_cols = ["ID"]
+                    cls._df["ID"] = range(len(cls._df))
+                
+                # Keep only first ID column as RegionName
+                data_subset = cls._df[[id_cols[0]] + date_cols].rename(columns={id_cols[0]: "RegionName"})
+                
+                # Melt the data to transform from wide to long format
                 melted = data_subset.melt(id_vars="RegionName", var_name="date", value_name="value")
                 melted["date"] = pd.to_datetime(melted["date"])
+                
+                # Pivot to get regions as columns and dates as index
                 cleaned = melted.pivot(index="date", columns="RegionName", values="value").dropna(axis=1)
                 cls._df = cleaned
-                st.success(f"Data loaded successfully with {len(cls._df.columns)} regions")
+                st.success(f"Data reshaped successfully with {len(cls._df.columns)} regions")
             else:
-                st.info("No date columns found, treating data as-is")
-        else:
-            cls._df = data_source
-            st.success("Data loaded from provided DataFrame")
+                # Check if there's a date/time column we can use as index
+                date_col = None
+                for col in cls._df.columns:
+                    # Try to convert the column to datetime
+                    try:
+                        pd.to_datetime(cls._df[col])
+                        date_col = col
+                        break
+                    except:
+                        continue
+                
+                if date_col:
+                    st.info(f"Using '{date_col}' as date index")
+                    cls._df[date_col] = pd.to_datetime(cls._df[date_col])
+                    cls._df.set_index(date_col, inplace=True)
+                else:
+                    st.warning("No date column found. Using default index.")
+                    
+            st.success(f"Data loaded successfully! Shape: {cls._df.shape}")
+            
+        except Exception as e:
+            st.error(f"Error loading data: {str(e)}")
+            return None
         
         return cls
     
@@ -78,6 +116,8 @@ class ARIMATimeSeriesAnalyzerStreamlit:
         st.info(f"Selected time series data for {column}")
         
         return self
+    
+    # ... keep existing code (plot_time_series, split_data, check_stationarity and other analysis methods)
     
     def plot_time_series(self, title=None):
         """Plot the loaded time series data."""
@@ -502,7 +542,33 @@ class ARIMATimeSeriesAnalyzerStreamlit:
         
         return results
 
-# Streamlit app
+def display_sample_csv():
+    """Display a sample CSV format for users."""
+    st.subheader("Sample CSV Format")
+    
+    st.markdown("""
+    You can upload a CSV file with time series data in one of these formats:
+    
+    1. **Wide format** with regions/variables as rows and dates as columns:
+    
+    | RegionName | 2020-01-01 | 2020-02-01 | 2020-03-01 | ... |
+    |------------|------------|------------|------------|-----|
+    | New York   | 100.2      | 101.3      | 102.1      | ... |
+    | Chicago    | 95.8       | 96.2       | 97.5       | ... |
+    
+    2. **Long format** with a date column and value column:
+    
+    | date       | value      | region     |
+    |------------|------------|------------|
+    | 2020-01-01 | 100.2      | New York   |
+    | 2020-02-01 | 101.3      | New York   |
+    | 2020-01-01 | 95.8       | Chicago    |
+    | 2020-02-01 | 96.2       | Chicago    |
+    """)
+    
+    st.info("The application will try to detect the format and process the data accordingly.")
+
+# Main Streamlit app
 def main():
     st.set_page_config(page_title="ARIMA Time Series Analyzer", layout="wide")
     
@@ -522,6 +588,10 @@ def main():
     with tabs[0]:
         st.header("Data Upload")
         
+        # Display sample CSV format
+        if st.checkbox("Show sample CSV format"):
+            display_sample_csv()
+        
         uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
         
         if uploaded_file is not None:
@@ -530,8 +600,6 @@ def main():
                 ARIMATimeSeriesAnalyzerStreamlit.load_data(uploaded_file)
                 
                 if ARIMATimeSeriesAnalyzerStreamlit._df is not None:
-                    st.success(f"Data loaded successfully! Shape: {ARIMATimeSeriesAnalyzerStreamlit._df.shape}")
-                    
                     # Display first few rows of the data
                     st.subheader("Preview of the Data")
                     st.dataframe(ARIMATimeSeriesAnalyzerStreamlit._df.head())

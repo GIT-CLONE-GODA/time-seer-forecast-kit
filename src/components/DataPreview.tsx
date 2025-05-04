@@ -21,20 +21,31 @@ interface DataPreviewProps {
 const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
   const [selectedColumn, setSelectedColumn] = useState<string>('');
   
+  useEffect(() => {
+    // Auto-select the first numeric column if none is selected
+    if (!selectedColumn && data.columns.length > 1) {
+      const nonDateCols = data.columns.filter(col => col !== 'date');
+      if (nonDateCols.length > 0) {
+        setSelectedColumn(nonDateCols[0]);
+        onColumnSelect(nonDateCols[0]);
+      }
+    }
+  }, [data, selectedColumn, onColumnSelect]);
+  
   // Get non-date columns
   const timeSeriesColumns = data.columns.filter(col => col !== 'date');
-  
-  // Auto-select the first column on initial load if none selected
-  useEffect(() => {
-    if (!selectedColumn && timeSeriesColumns.length > 0) {
-      handleColumnChange(timeSeriesColumns[0]);
-    }
-  }, [timeSeriesColumns]);
   
   // Handle column selection
   const handleColumnChange = (value: string) => {
     setSelectedColumn(value);
     onColumnSelect(value);
+  };
+  
+  // Safe display function for cell values
+  const displayValue = (value: any): string => {
+    if (value === null || value === undefined) return 'N/A';
+    if (typeof value === 'number') return value.toLocaleString();
+    return String(value);
   };
   
   return (
@@ -84,12 +95,7 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
                       className={column === selectedColumn ? 
                         "bg-primary/10 font-medium" : ""}
                     >
-                      {column === 'date' ? row[column] : 
-                        row[column] != null && !isNaN(row[column]) ? 
-                          typeof row[column] === 'number' ? 
-                            row[column].toLocaleString() : 
-                            row[column] : 
-                          'N/A'}
+                      {displayValue(row[column])}
                     </TableCell>
                   ))}
                 </TableRow>

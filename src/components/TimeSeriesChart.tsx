@@ -17,28 +17,35 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
   // Create chart data with predictions if available
   const chartData = [...data];
   
-  // If we have predictions, add them to the chart data
-  if (predictions && predictions.forecast) {
-    const trainSize = Math.floor(data.length * 0.8);
-    const trainingData = data.slice(0, trainSize);
-    const testingData = data.slice(trainSize);
-    
-    // Add forecast values to the testing data points
-    predictions.forecast.forEach((value, index) => {
-      if (index < testingData.length) {
-        testingData[index] = {
-          ...testingData[index],
-          [`${selectedColumn}_forecast`]: value
-        };
-      }
-    });
-  }
-
   // Create split view data (training and testing)
   const trainSize = Math.floor(data.length * 0.8);
   const trainingData = data.slice(0, trainSize);
   const testingData = data.slice(trainSize);
-  const allData = [...trainingData, ...testingData];
+  
+  // Create a properly formatted dataset for showing train/test split
+  // Each data point knows whether it's in training or testing set
+  const splitData = data.map((item, index) => ({
+    ...item,
+    [`${selectedColumn}_train`]: index < trainSize ? item[selectedColumn] : null,
+    [`${selectedColumn}_test`]: index >= trainSize ? item[selectedColumn] : null
+  }));
+  
+  // If we have predictions, add them to the chart data
+  if (predictions && predictions.forecast) {
+    // Map forecast values to testing data points
+    testingData.forEach((item, index) => {
+      if (index < predictions.forecast.length) {
+        const forecastValue = predictions.forecast[index];
+        const dataIndex = trainSize + index;
+        if (dataIndex < chartData.length) {
+          chartData[dataIndex] = {
+            ...chartData[dataIndex],
+            [`${selectedColumn}_forecast`]: forecastValue
+          };
+        }
+      }
+    });
+  }
   
   // Custom formatter for y-axis values - updated to always return a string
   const formatYAxis = (value: number): string => {
@@ -58,7 +65,10 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
           <p className="font-medium">{label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} style={{ color: entry.color }}>
-              {entry.name}: {entry.value.toLocaleString()}
+              {entry.name}: {entry.value !== null && entry.value !== undefined 
+                ? entry.value.toLocaleString()
+                : 'N/A'
+              }
             </p>
           ))}
         </div>
@@ -107,7 +117,7 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
           
           <TabsContent value="split" className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%" className="time-series-chart">
-              <LineChart data={allData}>
+              <LineChart data={splitData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" tick={{ fontSize: 12 }} tickMargin={10} />
                 <YAxis 
@@ -119,25 +129,25 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
                 <Legend />
                 <Line
                   type="monotone"
-                  dataKey={selectedColumn}
+                  dataKey={`${selectedColumn}_train`}
                   stroke="#0ca4eb"
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 6 }}
                   name={`${selectedColumn} (Training)`}
                   animationDuration={1500}
-                  data={trainingData}
+                  connectNulls
                 />
                 <Line
                   type="monotone"
-                  dataKey={selectedColumn}
+                  dataKey={`${selectedColumn}_test`}
                   stroke="#f97316"
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 6 }}
                   name={`${selectedColumn} (Testing)`}
                   animationDuration={1500}
-                  data={testingData}
+                  connectNulls
                 />
               </LineChart>
             </ResponsiveContainer>

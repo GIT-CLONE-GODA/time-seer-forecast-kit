@@ -1,176 +1,259 @@
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { 
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
-} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-
-interface ModelConfigurationProps {
-  onRunModel: (config: ModelConfig) => void;
-}
+import { Button } from '@/components/ui/button';
+import { useForm } from 'react-hook-form';
+import { Loader2 } from 'lucide-react';
 
 export interface ModelConfig {
-  modelType: 'manual' | 'auto';
   trainSize: number;
-  order?: { p: number; d: number; q: number };
+  modelType: 'auto' | 'manual';
+  order?: {
+    p: number;
+    d: number;
+    q: number;
+  };
   seasonal: boolean;
   seasonalPeriod: number;
 }
 
-const ModelConfiguration = ({ onRunModel }: ModelConfigurationProps) => {
-  const [modelType, setModelType] = useState<'manual' | 'auto'>('auto');
-  const [p, setP] = useState<number>(2);
-  const [d, setD] = useState<number>(1);
-  const [q, setQ] = useState<number>(1);
-  const [trainSize, setTrainSize] = useState<number>(80);
-  const [seasonal, setSeasonal] = useState<boolean>(false);
-  const [seasonalPeriod, setSeasonalPeriod] = useState<number>(12);
+interface ModelConfigurationProps {
+  onRunModel: (config: ModelConfig) => void;
+  isLoading?: boolean;
+}
+
+const ModelConfiguration = ({ onRunModel, isLoading = false }: ModelConfigurationProps) => {
+  const [modelType, setModelType] = useState<'auto' | 'manual'>('auto');
+  const [seasonal, setSeasonal] = useState(false);
   
-  const handleRunModel = () => {
-    const config: ModelConfig = {
-      modelType,
-      trainSize: trainSize / 100,
-      seasonal,
-      seasonalPeriod,
-    };
-    
-    if (modelType === 'manual') {
-      config.order = { p, d, q };
-    }
-    
-    onRunModel(config);
+  const form = useForm<ModelConfig>({
+    defaultValues: {
+      trainSize: 0.8,
+      modelType: 'auto',
+      order: {
+        p: 1,
+        d: 1,
+        q: 1,
+      },
+      seasonal: false,
+      seasonalPeriod: 12,
+    },
+  });
+  
+  const handleSubmit = (values: ModelConfig) => {
+    onRunModel(values);
   };
   
+  const handleTypeChange = (value: string) => {
+    setModelType(value as 'auto' | 'manual');
+    form.setValue('modelType', value as 'auto' | 'manual');
+  };
+  
+  const handleSeasonalChange = (checked: boolean) => {
+    setSeasonal(checked);
+    form.setValue('seasonal', checked);
+  };
+
   return (
     <Card className="w-full">
       <CardHeader>
         <CardTitle>Model Configuration</CardTitle>
-        <CardDescription>Configure and run your ARIMA time series model</CardDescription>
+        <CardDescription>Configure your ARIMA time series model</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-6">
-          <div className="grid gap-2">
-            <Label htmlFor="model-type">ARIMA Model Type</Label>
-            <Select 
-              value={modelType} 
-              onValueChange={(value: 'manual' | 'auto') => setModelType(value)}
-            >
-              <SelectTrigger id="model-type">
-                <SelectValue placeholder="Select model type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="auto">Auto ARIMA (Automatically find best parameters)</SelectItem>
-                <SelectItem value="manual">Manual ARIMA (Set your own parameters)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {modelType === 'manual' && (
-            <div className="grid grid-cols-3 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="p-value">P (AR order)</Label>
-                <div className="flex items-center gap-2">
-                  <Slider
-                    id="p-slider"
-                    min={0}
-                    max={5}
-                    step={1}
-                    value={[p]}
-                    onValueChange={(value) => setP(value[0])}
-                    className="flex-1"
-                  />
-                  <span className="w-8 text-center">{p}</span>
-                </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <FormLabel className="text-sm font-medium">Training Data Size</FormLabel>
+              <div className="flex flex-wrap items-center gap-2">
+                <Slider
+                  defaultValue={[80]}
+                  max={95}
+                  min={50}
+                  step={5}
+                  onValueChange={(value) => form.setValue('trainSize', value[0] / 100)}
+                  className="flex-1"
+                />
+                <span className="text-sm font-medium">
+                  {Math.round(form.watch('trainSize') * 100)}%
+                </span>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="d-value">D (Differencing)</Label>
-                <div className="flex items-center gap-2">
-                  <Slider
-                    id="d-slider"
-                    min={0}
-                    max={2}
-                    step={1}
-                    value={[d]}
-                    onValueChange={(value) => setD(value[0])}
-                    className="flex-1"
-                  />
-                  <span className="w-8 text-center">{d}</span>
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="q-value">Q (MA order)</Label>
-                <div className="flex items-center gap-2">
-                  <Slider
-                    id="q-slider"
-                    min={0}
-                    max={5}
-                    step={1}
-                    value={[q]}
-                    onValueChange={(value) => setQ(value[0])}
-                    className="flex-1"
-                  />
-                  <span className="w-8 text-center">{q}</span>
-                </div>
-              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Percentage of data used for training the model
+              </p>
             </div>
-          )}
-          
-          <div className="grid gap-2">
-            <Label htmlFor="train-size">Training Data Size (%)</Label>
-            <div className="flex items-center gap-2">
-              <Slider
-                id="train-size"
-                min={50}
-                max={90}
-                step={5}
-                value={[trainSize]}
-                onValueChange={(value) => setTrainSize(value[0])}
-                className="flex-1"
+            
+            <Tabs defaultValue="auto" onValueChange={handleTypeChange}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="auto">Auto ARIMA</TabsTrigger>
+                <TabsTrigger value="manual">Manual ARIMA</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="auto" className="pt-4">
+                <p className="text-sm text-muted-foreground">
+                  Auto ARIMA automatically identifies the optimal model parameters (p,d,q) 
+                  using statistical methods.
+                </p>
+              </TabsContent>
+              
+              <TabsContent value="manual" className="space-y-4 pt-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="order.p"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>p (AR)</FormLabel>
+                        <Select
+                          onValueChange={(value) => field.onChange(parseInt(value))}
+                          defaultValue={field.value.toString()}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select p" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {[0, 1, 2, 3, 4, 5].map((p) => (
+                              <SelectItem key={p} value={p.toString()}>
+                                {p}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="order.d"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>d (I)</FormLabel>
+                        <Select
+                          onValueChange={(value) => field.onChange(parseInt(value))}
+                          defaultValue={field.value.toString()}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select d" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {[0, 1, 2].map((d) => (
+                              <SelectItem key={d} value={d.toString()}>
+                                {d}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="order.q"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>q (MA)</FormLabel>
+                        <Select
+                          onValueChange={(value) => field.onChange(parseInt(value))}
+                          defaultValue={field.value.toString()}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select q" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {[0, 1, 2, 3, 4, 5].map((q) => (
+                              <SelectItem key={q} value={q.toString()}>
+                                {q}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
+            
+            <div className="flex items-center space-x-2 pt-2">
+              <Switch
+                id="seasonal"
+                checked={seasonal}
+                onCheckedChange={handleSeasonalChange}
               />
-              <span className="w-12 text-center">{trainSize}%</span>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="seasonal"
-              checked={seasonal}
-              onCheckedChange={setSeasonal}
-            />
-            <Label htmlFor="seasonal">Include Seasonal Component</Label>
-          </div>
-          
-          {seasonal && (
-            <div className="grid gap-2">
-              <Label htmlFor="seasonal-period">Seasonal Period</Label>
-              <Select 
-                value={seasonalPeriod.toString()} 
-                onValueChange={(value) => setSeasonalPeriod(parseInt(value))}
+              <label
+                htmlFor="seasonal"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                <SelectTrigger id="seasonal-period">
-                  <SelectValue placeholder="Select seasonal period" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="4">Quarterly (4)</SelectItem>
-                  <SelectItem value="12">Monthly (12)</SelectItem>
-                  <SelectItem value="52">Weekly (52)</SelectItem>
-                </SelectContent>
-              </Select>
+                Include Seasonality
+              </label>
             </div>
-          )}
-          
-          <Button 
-            className="w-full" 
-            onClick={handleRunModel}
-          >
-            Run Model
-          </Button>
-        </div>
+            
+            {seasonal && (
+              <FormField
+                control={form.control}
+                name="seasonalPeriod"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Seasonal Period</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                      defaultValue={field.value.toString()}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select period" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {[4, 7, 12, 52].map((period) => (
+                          <SelectItem key={period} value={period.toString()}>
+                            {period === 4 ? 'Quarterly (4)' : 
+                             period === 7 ? 'Weekly (7)' : 
+                             period === 12 ? 'Monthly (12)' : 
+                             'Weekly (52)'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            
+            <Button 
+              type="submit" 
+              className="w-full"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing Data
+                </>
+              ) : (
+                'Run Model'
+              )}
+            </Button>
+          </form>
+        </Form>
       </CardContent>
     </Card>
   );

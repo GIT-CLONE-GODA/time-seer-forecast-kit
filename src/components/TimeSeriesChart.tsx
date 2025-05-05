@@ -29,6 +29,12 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
       [`${selectedColumn}_testing`]: !isTraining ? item[selectedColumn] : null,
     };
   });
+  
+  // Add a single connecting point at the transition
+  if (combinedData.length > 0 && trainSize > 0 && trainSize < combinedData.length) {
+    // Create a connecting point at the boundary
+    combinedData[trainSize-1][`${selectedColumn}_testing`] = combinedData[trainSize-1][selectedColumn];
+  }
 
   // Prepare data for forecast visualization
   const forecastData = [...data];
@@ -38,10 +44,22 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
     predictions.forecast.forEach((value, index) => {
       const dataIndex = trainSize + index;
       if (dataIndex < forecastData.length) {
+        // Update existing data points
         forecastData[dataIndex] = {
           ...forecastData[dataIndex],
           [`${selectedColumn}_forecast`]: value
         };
+      } else {
+        // Add new data points for forecasts that extend beyond existing data
+        // Use the date from predictions.dates if available, or generate a date
+        const date = predictions.dates && predictions.dates[index] 
+          ? predictions.dates[index] 
+          : `Forecast ${index + 1}`;
+        
+        forecastData.push({
+          date: date,
+          [`${selectedColumn}_forecast`]: value
+        });
       }
     });
   }
@@ -150,6 +168,7 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
                   dot={false}
                   activeDot={{ r: 6 }}
                   animationDuration={1500}
+                  animationBegin={0}
                   connectNulls
                 />
                 <Line
@@ -161,6 +180,7 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
                   dot={false}
                   activeDot={{ r: 6 }}
                   animationDuration={1500}
+                  animationBegin={1500} // Start after training animation ends
                   connectNulls
                 />
               </LineChart>
@@ -190,6 +210,7 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
                     activeDot={{ r: 6 }}
                     name="Actual"
                     animationDuration={1500}
+                    animationBegin={0}
                   />
                   <Line
                     type="monotone"
@@ -200,6 +221,7 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
                     activeDot={{ r: 6 }}
                     name="Forecast"
                     animationDuration={1500}
+                    animationBegin={1500} // Start after actual data animation ends
                   />
                 </LineChart>
               </ResponsiveContainer>

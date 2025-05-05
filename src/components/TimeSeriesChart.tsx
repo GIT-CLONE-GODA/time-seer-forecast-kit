@@ -14,51 +14,75 @@ interface TimeSeriesChartProps {
 }
 
 const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartProps) => {
-  // Create chart data with predictions if available
+  // Format data for the charts
   const chartData = [...data];
   
-  // If we have predictions, add them to the chart data
+  // Calculate split point for train/test data (assuming 80% train by default)
+  const trainSize = Math.floor(data.length * 0.8);
+  
+  // Prepare combined data for train/test visualization
+  const combinedData = data.map((item, index) => {
+    const isTraining = index < trainSize;
+    return {
+      ...item,
+      [`${selectedColumn}_training`]: isTraining ? item[selectedColumn] : null,
+      [`${selectedColumn}_testing`]: !isTraining ? item[selectedColumn] : null,
+    };
+  });
+
+  // Prepare data for forecast visualization
+  const forecastData = [...data];
+  
+  // If we have predictions, incorporate them into the forecast data
   if (predictions && predictions.forecast) {
-    const trainSize = Math.floor(data.length * 0.8);
-    const testingData = data.slice(trainSize);
-    
-    // Add forecast values to the testing data points
     predictions.forecast.forEach((value, index) => {
-      if (index < testingData.length) {
-        testingData[index] = {
-          ...testingData[index],
+      const dataIndex = trainSize + index;
+      if (dataIndex < forecastData.length) {
+        forecastData[dataIndex] = {
+          ...forecastData[dataIndex],
           [`${selectedColumn}_forecast`]: value
         };
       }
     });
   }
-
-  // Create split view data (training and testing)
-  const trainSize = Math.floor(data.length * 0.8);
-  const trainingData = data.slice(0, trainSize);
-  const testingData = data.slice(trainSize);
   
-  // Custom formatter for y-axis values - updated to always return a string
+  // Custom formatter for y-axis values
   const formatYAxis = (value: number): string => {
     if (value >= 1000000) {
       return `${(value / 1000000).toFixed(1)}M`;
     } else if (value >= 1000) {
       return `${(value / 1000).toFixed(0)}K`;
     }
-    return value.toString(); // Convert to string to ensure string return type
+    return value.toString();
   };
   
   // Custom tooltip formatter
   const renderTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border rounded shadow-md">
+        <div className="bg-background p-3 border rounded shadow-md">
           <p className="font-medium">{label}</p>
-          {payload.map((entry: any, index: number) => (
-            <p key={index} style={{ color: entry.color }}>
-              {entry.name}: {entry.value.toLocaleString()}
-            </p>
-          ))}
+          {payload.map((entry: any, index: number) => {
+            // Only show non-null values
+            if (entry.value !== null) {
+              // Extract the display name from the dataKey
+              let displayName = entry.name;
+              if (displayName.includes('_training')) {
+                displayName = `${selectedColumn} (Training)`;
+              } else if (displayName.includes('_testing')) {
+                displayName = `${selectedColumn} (Testing)`;
+              } else if (displayName.includes('_forecast')) {
+                displayName = 'Forecast';
+              }
+              
+              return (
+                <p key={index} style={{ color: entry.color }}>
+                  {displayName}: {entry.value.toLocaleString()}
+                </p>
+              );
+            }
+            return null;
+          }).filter(Boolean)}
         </div>
       );
     }
@@ -78,6 +102,7 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
             {predictions && <TabsTrigger value="forecast">Forecast</TabsTrigger>}
           </TabsList>
           
+          {/* Full Series Tab */}
           <TabsContent value="full" className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%" className="time-series-chart">
               <LineChart data={chartData}>
@@ -103,11 +128,10 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
             </ResponsiveContainer>
           </TabsContent>
           
+          {/* Train/Test Split Tab - Fixed to show as one continuous chart with different colors */}
           <TabsContent value="split" className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%" className="time-series-chart">
-              <LineChart 
-                data={[...trainingData, ...testingData]}
-              >
+              <LineChart data={combinedData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" tick={{ fontSize: 12 }} tickMargin={10} />
                 <YAxis 
@@ -119,34 +143,35 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
                 <Legend />
                 <Line
                   type="monotone"
-                  dataKey={selectedColumn}
+                  dataKey={`${selectedColumn}_training`}
+                  name={`${selectedColumn} (Training)`}
                   stroke="#0ca4eb"
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 6 }}
-                  name={`${selectedColumn} (Training)`}
                   animationDuration={1500}
-                  data={trainingData}
+                  connectNulls
                 />
                 <Line
                   type="monotone"
-                  dataKey={selectedColumn}
+                  dataKey={`${selectedColumn}_testing`}
+                  name={`${selectedColumn} (Testing)`}
                   stroke="#f97316"
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 6 }}
-                  name={`${selectedColumn} (Testing)`}
                   animationDuration={1500}
-                  data={testingData}
+                  connectNulls
                 />
               </LineChart>
             </ResponsiveContainer>
           </TabsContent>
           
+          {/* Forecast Tab - Fixed to properly colorize actual vs forecast values */}
           {predictions && (
             <TabsContent value="forecast" className="h-[400px]">
               <ResponsiveContainer width="100%" height="100%" className="time-series-chart">
-                <LineChart data={chartData}>
+                <LineChart data={forecastData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" tick={{ fontSize: 12 }} tickMargin={10} />
                   <YAxis 

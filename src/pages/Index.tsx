@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import FileUpload from '@/components/FileUpload';
@@ -6,7 +5,7 @@ import DataPreview from '@/components/DataPreview';
 import TimeSeriesChart from '@/components/TimeSeriesChart';
 import ModelConfiguration, { ModelConfig } from '@/components/ModelConfiguration';
 import ModelResults from '@/components/ModelResults';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { CalendarClock } from 'lucide-react';
 
 const Index = () => {
@@ -33,13 +32,7 @@ const Index = () => {
   };
 
   const handleRunModel = (config: ModelConfig) => {
-    // Simulate model running with a toast
-    toast({
-      title: "Running ARIMA model",
-      description: "Please wait while we process your data...",
-    });
-
-    // Simulate async model execution
+    // Simulate async model execution without toast
     setTimeout(() => {
       // Generate mock results
       const mockResults = {

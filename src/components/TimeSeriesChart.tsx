@@ -20,7 +20,6 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
   // If we have predictions, add them to the chart data
   if (predictions && predictions.forecast) {
     const trainSize = Math.floor(data.length * 0.8);
-    const trainingData = data.slice(0, trainSize);
     const testingData = data.slice(trainSize);
     
     // Add forecast values to the testing data points
@@ -38,7 +37,6 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
   const trainSize = Math.floor(data.length * 0.8);
   const trainingData = data.slice(0, trainSize);
   const testingData = data.slice(trainSize);
-  const allData = [...trainingData, ...testingData];
   
   // Custom formatter for y-axis values - updated to always return a string
   const formatYAxis = (value: number): string => {
@@ -107,7 +105,9 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
           
           <TabsContent value="split" className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%" className="time-series-chart">
-              <LineChart data={allData}>
+              <LineChart 
+                data={[...trainingData, ...testingData]}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" tick={{ fontSize: 12 }} tickMargin={10} />
                 <YAxis 
@@ -169,9 +169,8 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
                   <Line
                     type="monotone"
                     dataKey={`${selectedColumn}_forecast`}
-                    stroke="#10b981"
+                    stroke="#8B5CF6"
                     strokeWidth={2}
-                    strokeDasharray="5 5"
                     dot={false}
                     activeDot={{ r: 6 }}
                     name="Forecast"

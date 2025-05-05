@@ -9,6 +9,7 @@ import {
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Loader } from 'lucide-react';
 
 interface ModelConfigurationProps {
   onRunModel: (config: ModelConfig) => void;
@@ -30,6 +31,7 @@ const ModelConfiguration = ({ onRunModel }: ModelConfigurationProps) => {
   const [trainSize, setTrainSize] = useState<number>(80);
   const [seasonal, setSeasonal] = useState<boolean>(false);
   const [seasonalPeriod, setSeasonalPeriod] = useState<number>(12);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   
   const handleRunModel = () => {
     const config: ModelConfig = {
@@ -43,7 +45,15 @@ const ModelConfiguration = ({ onRunModel }: ModelConfigurationProps) => {
       config.order = { p, d, q };
     }
     
+    setIsLoading(true);
+    
+    // Call the onRunModel prop
     onRunModel(config);
+    
+    // Reset loading state after a delay to simulate model running
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
   };
   
   return (
@@ -167,8 +177,16 @@ const ModelConfiguration = ({ onRunModel }: ModelConfigurationProps) => {
           <Button 
             className="w-full" 
             onClick={handleRunModel}
+            disabled={isLoading}
           >
-            Run Model
+            {isLoading ? (
+              <>
+                <Loader className="mr-2 h-4 w-4 animate-spin" />
+                Running Model...
+              </>
+            ) : (
+              'Run Model'
+            )}
           </Button>
         </div>
       </CardContent>

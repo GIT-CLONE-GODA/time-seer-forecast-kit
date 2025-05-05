@@ -29,6 +29,19 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
     setSelectedColumn(value);
     onColumnSelect(value);
   };
+
+  // Format cell value safely
+  const formatCellValue = (value: any): string => {
+    if (value === null || value === undefined) {
+      return 'N/A';
+    }
+    
+    if (typeof value === 'number') {
+      return value.toLocaleString();
+    }
+    
+    return String(value);
+  };
   
   return (
     <Card className="w-full">
@@ -77,7 +90,7 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
                       className={column === selectedColumn ? 
                         "bg-primary/10 font-medium" : ""}
                     >
-                      {column === 'date' ? row[column] : row[column].toLocaleString()}
+                      {formatCellValue(row[column])}
                     </TableCell>
                   ))}
                 </TableRow>

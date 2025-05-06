@@ -1,30 +1,24 @@
 
 import subprocess
 import sys
+import os
 
 def start_api_server():
-    """
-    Start the ARIMA Forecast API server.
-    This script ensures all dependencies are installed before launching.
-    """
-    print("Starting ARIMA Forecast API server...")
-    
-    # Check if requirements are installed
+    # Check if API requirements are installed
     try:
         import flask
         import flask_cors
-        import pandas
-        import numpy
-        import statsmodels
-        import sklearn
-        import pmdarima
     except ImportError:
-        print("Installing required dependencies...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements_api.txt"])
+        print("Installing API server dependencies...")
+        requirements_api_path = "requirements_api.txt"
+        if os.path.exists(requirements_api_path):
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", requirements_api_path])
+        else:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "flask", "flask-cors"])
     
-    # Start the Flask API server
-    print("Launching API server...")
-    subprocess.call(["python", "api_server.py"])
+    # Run the API server
+    print("Starting API server on http://localhost:5000...")
+    subprocess.call([sys.executable, "api_server.py"])
 
 if __name__ == "__main__":
     start_api_server()

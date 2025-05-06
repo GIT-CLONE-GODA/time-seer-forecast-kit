@@ -13,6 +13,7 @@ import { Loader } from 'lucide-react';
 
 interface ModelConfigurationProps {
   onRunModel: (config: ModelConfig) => void;
+  isLoading?: boolean;
 }
 
 export interface ModelConfig {
@@ -23,7 +24,7 @@ export interface ModelConfig {
   seasonalPeriod: number;
 }
 
-const ModelConfiguration = ({ onRunModel }: ModelConfigurationProps) => {
+const ModelConfiguration = ({ onRunModel, isLoading = false }: ModelConfigurationProps) => {
   const [modelType, setModelType] = useState<'manual' | 'auto'>('auto');
   const [p, setP] = useState<number>(2);
   const [d, setD] = useState<number>(1);
@@ -31,7 +32,6 @@ const ModelConfiguration = ({ onRunModel }: ModelConfigurationProps) => {
   const [trainSize, setTrainSize] = useState<number>(80);
   const [seasonal, setSeasonal] = useState<boolean>(false);
   const [seasonalPeriod, setSeasonalPeriod] = useState<number>(12);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   
   const handleRunModel = () => {
     const config: ModelConfig = {
@@ -45,15 +45,8 @@ const ModelConfiguration = ({ onRunModel }: ModelConfigurationProps) => {
       config.order = { p, d, q };
     }
     
-    setIsLoading(true);
-    
     // Call the onRunModel prop
     onRunModel(config);
-    
-    // Reset loading state after a delay to simulate model running
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
   };
   
   return (
@@ -69,6 +62,7 @@ const ModelConfiguration = ({ onRunModel }: ModelConfigurationProps) => {
             <Select 
               value={modelType} 
               onValueChange={(value: 'manual' | 'auto') => setModelType(value)}
+              disabled={isLoading}
             >
               <SelectTrigger id="model-type">
                 <SelectValue placeholder="Select model type" />
@@ -93,6 +87,7 @@ const ModelConfiguration = ({ onRunModel }: ModelConfigurationProps) => {
                     value={[p]}
                     onValueChange={(value) => setP(value[0])}
                     className="flex-1"
+                    disabled={isLoading}
                   />
                   <span className="w-8 text-center">{p}</span>
                 </div>
@@ -108,6 +103,7 @@ const ModelConfiguration = ({ onRunModel }: ModelConfigurationProps) => {
                     value={[d]}
                     onValueChange={(value) => setD(value[0])}
                     className="flex-1"
+                    disabled={isLoading}
                   />
                   <span className="w-8 text-center">{d}</span>
                 </div>
@@ -123,6 +119,7 @@ const ModelConfiguration = ({ onRunModel }: ModelConfigurationProps) => {
                     value={[q]}
                     onValueChange={(value) => setQ(value[0])}
                     className="flex-1"
+                    disabled={isLoading}
                   />
                   <span className="w-8 text-center">{q}</span>
                 </div>
@@ -141,6 +138,7 @@ const ModelConfiguration = ({ onRunModel }: ModelConfigurationProps) => {
                 value={[trainSize]}
                 onValueChange={(value) => setTrainSize(value[0])}
                 className="flex-1"
+                disabled={isLoading}
               />
               <span className="w-12 text-center">{trainSize}%</span>
             </div>
@@ -151,6 +149,7 @@ const ModelConfiguration = ({ onRunModel }: ModelConfigurationProps) => {
               id="seasonal"
               checked={seasonal}
               onCheckedChange={setSeasonal}
+              disabled={isLoading}
             />
             <Label htmlFor="seasonal">Include Seasonal Component</Label>
           </div>
@@ -161,6 +160,7 @@ const ModelConfiguration = ({ onRunModel }: ModelConfigurationProps) => {
               <Select 
                 value={seasonalPeriod.toString()} 
                 onValueChange={(value) => setSeasonalPeriod(parseInt(value))}
+                disabled={isLoading}
               >
                 <SelectTrigger id="seasonal-period">
                   <SelectValue placeholder="Select seasonal period" />

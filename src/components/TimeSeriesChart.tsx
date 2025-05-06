@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getDataStats } from '@/services/forecastService';
 
@@ -191,6 +191,7 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
                 />
                 <Tooltip content={renderTooltip} />
                 <Legend />
+                <ReferenceLine y={dataStats.avg} stroke="#888" strokeDasharray="3 3" label="Average" />
                 <Line
                   type="monotone"
                   dataKey={selectedColumn}
@@ -223,6 +224,7 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
                 />
                 <Tooltip content={renderTooltip} />
                 <Legend />
+                <ReferenceLine y={dataStats.avg} stroke="#888" strokeDasharray="3 3" label="Average" />
                 <Line
                   type="monotone"
                   dataKey={`${selectedColumn}_training`}
@@ -271,6 +273,7 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
                   />
                   <Tooltip content={renderTooltip} />
                   <Legend />
+                  <ReferenceLine y={dataStats.avg} stroke="#888" strokeDasharray="3 3" label="Average" />
                   <Line
                     type="monotone"
                     dataKey={selectedColumn}

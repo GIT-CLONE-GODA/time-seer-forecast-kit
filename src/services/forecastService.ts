@@ -53,17 +53,6 @@ export interface ForecastResponse {
   };
 }
 
-// Function to validate and preprocess data
-export const validateData = async (data: any[]): Promise<any> => {
-  try {
-    const response = await axios.post(`${API_BASE_URL}/validate`, { data });
-    return response.data;
-  } catch (error) {
-    console.error('Error validating data:', error);
-    throw error;
-  }
-};
-
 // Function to run ARIMA forecast
 export const runForecast = async (request: ForecastRequest): Promise<ForecastResponse> => {
   try {

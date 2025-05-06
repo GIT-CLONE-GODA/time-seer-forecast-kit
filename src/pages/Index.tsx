@@ -8,7 +8,7 @@ import ModelConfiguration, { ModelConfig } from '@/components/ModelConfiguration
 import ModelResults from '@/components/ModelResults';
 import { useToast } from '@/hooks/use-toast';
 import { CalendarClock } from 'lucide-react';
-import { runForecast, prepareTimeSeriesData, preprocessData, validateData } from '@/services/forecastService';
+import { runForecast, prepareTimeSeriesData, preprocessData } from '@/services/forecastService';
 
 const Index = () => {
   const { toast } = useToast();
@@ -19,46 +19,18 @@ const Index = () => {
   const [modelResults, setModelResults] = useState<any | null>(null);
   const [predictions, setPredictions] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isValidating, setIsValidating] = useState<boolean>(false);
 
   // Process data when it changes
   useEffect(() => {
-    const processUploadedData = async () => {
-      if (data && data.data) {
-        try {
-          setIsValidating(true);
-          // Call the backend to validate and preprocess the data
-          const validatedData = await validateData(data.data);
-          
-          if (validatedData && validatedData.data) {
-            // Update with processed data
-            const processed = {
-              ...data,
-              data: validatedData.data,
-              columns: validatedData.columns || data.columns,
-              dateRange: validatedData.dateRange || data.dateRange,
-              rowCount: validatedData.data.length
-            };
-            
-            setProcessedData(processed);
-          } else {
-            throw new Error("Data validation failed");
-          }
-        } catch (error) {
-          console.error('Error processing data:', error);
-          toast({
-            title: "Error validating data",
-            description: error instanceof Error ? error.message : "Make sure your CSV has a 'date' column and numeric data",
-            variant: "destructive",
-          });
-        } finally {
-          setIsValidating(false);
-        }
-      }
-    };
-
-    processUploadedData();
-  }, [data, toast]);
+    if (data && data.data) {
+      // Apply preprocessing to the data
+      const processed = {
+        ...data,
+        data: preprocessData(data.data)
+      };
+      setProcessedData(processed);
+    }
+  }, [data]);
 
   const handleFileUploaded = (fileData: any) => {
     // Validate data has necessary columns
@@ -135,6 +107,21 @@ const Index = () => {
         dates: response.dates
       });
       
+      // Add forecast values to the data
+      const updatedData = [...processedData.data];
+      const trainSizeIndex = Math.floor(processedData.data.length * config.trainSize);
+      
+      response.forecast.forEach((value: number, i: number) => {
+        const dataIndex = trainSizeIndex + i;
+        if (dataIndex < updatedData.length) {
+          // Update existing data points
+          updatedData[dataIndex] = {
+            ...updatedData[dataIndex],
+            [`${selectedColumn}_forecast`]: value
+          };
+        }
+      });
+
       toast({
         title: "Model execution complete",
         description: `Your ${config.modelType === 'auto' ? 'Auto' : 'Manual'} ARIMA model has been successfully trained and evaluated.`,
@@ -172,16 +159,9 @@ const Index = () => {
             
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                {isValidating ? (
-                  <div className="flex items-center justify-center h-[300px] border rounded-md">
-                    <div className="text-center">
-                      <CalendarClock className="h-10 w-10 text-primary mx-auto mb-4 animate-pulse" />
-                      <p className="text-muted-foreground">Validating and preprocessing data...</p>
-                    </div>
-                  </div>
-                ) : processedData ? (
+                {processedData && (
                   <DataPreview data={processedData} onColumnSelect={handleColumnSelect} />
-                ) : null}
+                )}
               </div>
               
               {selectedColumn && (

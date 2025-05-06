@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { getNumericColumns, preprocessData } from '@/services/forecastService';
 
 interface DataPreviewProps {
@@ -85,42 +84,40 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[300px] rounded-md border">
-          <div className="w-full">
-            <Table>
-              <TableHeader>
-                <TableRow>
+        <div className="border rounded-md overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {data.columns.map((column) => (
+                  <TableHead 
+                    key={column} 
+                    className={column === selectedColumn ? 
+                      "bg-primary/20 text-primary font-semibold" : ""}
+                  >
+                    {column}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {processedData.slice(0, 5).map((row, i) => (
+                <TableRow key={i}>
                   {data.columns.map((column) => (
-                    <TableHead 
+                    <TableCell 
                       key={column} 
                       className={column === selectedColumn ? 
-                        "bg-primary/20 text-primary font-semibold sticky top-0 z-10" : "sticky top-0 z-10"}
+                        "bg-primary/10 font-medium" : ""}
                     >
-                      {column}
-                    </TableHead>
+                      {formatCellValue(row[column])}
+                    </TableCell>
                   ))}
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {processedData.slice(0, 20).map((row, i) => (
-                  <TableRow key={i}>
-                    {data.columns.map((column) => (
-                      <TableCell 
-                        key={column} 
-                        className={column === selectedColumn ? 
-                          "bg-primary/10 font-medium" : ""}
-                      >
-                        {formatCellValue(row[column])}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </ScrollArea>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
         <div className="mt-2 text-xs text-muted-foreground">
-          Showing 20 of {data.rowCount} rows • Date range: {data.dateRange.start} to {data.dateRange.end}
+          Showing 5 of {data.rowCount} rows • Date range: {data.dateRange.start} to {data.dateRange.end}
         </div>
       </CardContent>
     </Card>

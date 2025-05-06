@@ -13,6 +13,7 @@ const FileUpload = ({ onFileUploaded }: FileUploadProps) => {
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -58,34 +59,134 @@ const FileUpload = ({ onFileUploaded }: FileUploadProps) => {
     }
   };
 
-  const parseFile = (file: File) => {
-    // In a real app, we'd use library like papaparse
-    // For this demo, we'll create mock data
+  const parseFile = async (file: File) => {
+    setIsLoading(true);
     
-    // Mock time series data
-    const mockData = {
-      fileName: file.name,
-      columns: ['date', 'Los Angeles, CA', 'New York, NY', 'Chicago, IL'],
-      dateRange: {
-        start: '2020-01-01',
-        end: '2023-12-31'
-      },
-      rowCount: 48,
-      // Mock time series data
-      data: Array(48).fill(0).map((_, i) => ({
-        date: new Date(2020, Math.floor(i / 12), (i % 12) + 1).toISOString().split('T')[0],
-        'Los Angeles, CA': Math.round(200000 + Math.sin(i / 3) * 50000 + i * 3000 + Math.random() * 10000),
-        'New York, NY': Math.round(500000 + Math.cos(i / 4) * 70000 + i * 5000 + Math.random() * 15000),
-        'Chicago, IL': Math.round(300000 + Math.sin(i / 5) * 40000 + i * 4000 + Math.random() * 8000)
-      }))
-    };
-    
-    toast({
-      title: "File uploaded successfully",
-      description: `${file.name} has been processed.`,
+    try {
+      // Read the file content
+      const text = await readFileAsText(file);
+      
+      // Split by newline and find the headers
+      const lines = text.split('\n');
+      if (lines.length === 0) {
+        throw new Error("File is empty");
+      }
+      
+      // Parse headers - assume first row is headers
+      const headers = parseCSVLine(lines[0]);
+      if (headers.length === 0) {
+        throw new Error("No headers found in file");
+      }
+      
+      // Find date column index (assuming it's named 'date' or contains 'date')
+      let dateColumnIndex = headers.findIndex(h => h.toLowerCase() === 'date');
+      if (dateColumnIndex === -1) {
+        // Try finding any column with 'date' in it
+        dateColumnIndex = headers.findIndex(h => h.toLowerCase().includes('date'));
+      }
+      
+      if (dateColumnIndex === -1) {
+        throw new Error("No date column found. Please ensure your CSV has a column named 'date'");
+      }
+      
+      // Parse data rows
+      const data = [];
+      let minDate = '';
+      let maxDate = '';
+      
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim() === '') continue;
+        
+        const values = parseCSVLine(lines[i]);
+        if (values.length !== headers.length) continue;
+        
+        const rowData: any = {};
+        
+        for (let j = 0; j < headers.length; j++) {
+          const value = values[j].trim();
+          
+          if (j === dateColumnIndex) {
+            rowData['date'] = value;
+            if (!minDate || value < minDate) minDate = value;
+            if (!maxDate || value > maxDate) maxDate = value;
+          } else {
+            // Try to convert numeric values
+            const numValue = parseFloat(value);
+            rowData[headers[j]] = isNaN(numValue) ? value : numValue;
+          }
+        }
+        
+        data.push(rowData);
+      }
+      
+      // Create result object
+      const result = {
+        fileName: file.name,
+        columns: ['date', ...headers.filter((_, i) => i !== dateColumnIndex)],
+        dateRange: {
+          start: minDate,
+          end: maxDate
+        },
+        rowCount: data.length,
+        data: data
+      };
+      
+      toast({
+        title: "File uploaded successfully",
+        description: `${file.name} has been processed with ${data.length} rows.`,
+      });
+      
+      onFileUploaded(result);
+    } catch (error) {
+      console.error('Error parsing CSV:', error);
+      toast({
+        title: "Error parsing file",
+        description: error instanceof Error ? error.message : "Failed to parse CSV file",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Helper function to read file content
+  const readFileAsText = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target && typeof event.target.result === 'string') {
+          resolve(event.target.result);
+        } else {
+          reject(new Error('Failed to read file'));
+        }
+      };
+      reader.onerror = () => reject(new Error('File read error'));
+      reader.readAsText(file);
     });
+  };
+  
+  // Helper function to parse CSV line handling quotes
+  const parseCSVLine = (line: string): string[] => {
+    const result = [];
+    let currentValue = '';
+    let inQuotes = false;
     
-    onFileUploaded(mockData);
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(currentValue);
+        currentValue = '';
+      } else {
+        currentValue += char;
+      }
+    }
+    
+    // Add the last value
+    result.push(currentValue);
+    return result;
   };
   
   return (
@@ -99,7 +200,12 @@ const FileUpload = ({ onFileUploaded }: FileUploadProps) => {
             isDragging ? 'border-seer-400 bg-seer-50' : 'border-muted'
           }`}
         >
-          {file ? (
+          {isLoading ? (
+            <div className="flex flex-col items-center space-y-2">
+              <div className="h-12 w-12 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+              <p className="font-medium text-lg">Processing file...</p>
+            </div>
+          ) : file ? (
             <div className="flex flex-col items-center space-y-2">
               <FileCheck className="h-12 w-12 text-green-500" />
               <p className="font-medium text-lg">{file.name}</p>

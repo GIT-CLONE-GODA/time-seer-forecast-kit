@@ -66,8 +66,11 @@ export const runForecast = async (request: ForecastRequest): Promise<ForecastRes
 
 // Function to prepare time series data for the API
 export const prepareTimeSeriesData = (data: any[], selectedColumn: string): TimeSeriesDataPoint[] => {
-  return data.map(row => ({
-    date: row.date,
-    value: row[selectedColumn]
-  }));
+  return data
+    .filter(row => row.date && row[selectedColumn] !== undefined && row[selectedColumn] !== null)
+    .map(row => ({
+      date: row.date,
+      value: parseFloat(row[selectedColumn])
+    }))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 };

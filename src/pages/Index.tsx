@@ -20,6 +20,16 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleFileUploaded = (fileData: any) => {
+    // Validate data has necessary columns
+    if (!fileData || !fileData.data || !fileData.columns) {
+      toast({
+        title: "Invalid data format",
+        description: "The uploaded file doesn't contain valid time series data",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setData(fileData);
     setSelectedColumn('');
     setModelConfig(null);
@@ -50,13 +60,18 @@ const Index = () => {
       // Prepare request data
       const timeSeriesData = prepareTimeSeriesData(data.data, selectedColumn);
       
+      if (timeSeriesData.length === 0) {
+        throw new Error("No valid data points found for the selected column");
+      }
+      
       // Calculate forecast steps based on test data size
-      const testSize = Math.floor(data.data.length * (1 - config.trainSize));
+      const trainSize = Math.floor(timeSeriesData.length * config.trainSize);
+      const testSize = timeSeriesData.length - trainSize;
       
       const request = {
         data: timeSeriesData,
         column_name: selectedColumn,
-        forecast_steps: testSize,
+        forecast_steps: testSize > 0 ? testSize : 6, // Default to 6 months if no test size
         config: {
           model_type: config.modelType,
           train_size: config.trainSize,
@@ -81,12 +96,14 @@ const Index = () => {
       
       // Add forecast values to the data
       const updatedData = [...data.data];
-      const trainSize = Math.floor(data.data.length * config.trainSize);
+      const trainSizeIndex = Math.floor(data.data.length * config.trainSize);
       
       response.forecast.forEach((value: number, i: number) => {
-        if (trainSize + i < updatedData.length) {
-          updatedData[trainSize + i] = {
-            ...updatedData[trainSize + i],
+        const dataIndex = trainSizeIndex + i;
+        if (dataIndex < updatedData.length) {
+          // Update existing data points
+          updatedData[dataIndex] = {
+            ...updatedData[dataIndex],
             [`${selectedColumn}_forecast`]: value
           };
         }
@@ -100,7 +117,7 @@ const Index = () => {
       console.error('Error running model:', error);
       toast({
         title: "Error running model",
-        description: "There was an error running the ARIMA model. Please check the console for details.",
+        description: error instanceof Error ? error.message : "There was an error running the ARIMA model",
         variant: "destructive",
       });
     } finally {

@@ -74,3 +74,71 @@ export const prepareTimeSeriesData = (data: any[], selectedColumn: string): Time
     }))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 };
+
+// Function to preprocess data before preview
+export const preprocessData = (rawData: any[]): any[] => {
+  // Filter out rows with invalid data
+  return rawData.filter(row => {
+    // Ensure row has a date and at least one valid numeric value
+    if (!row.date) return false;
+    
+    // Check if at least one column contains a number
+    return Object.keys(row).some(key => {
+      if (key === 'date') return false;
+      const val = row[key];
+      return val !== null && val !== undefined && !isNaN(parseFloat(val));
+    });
+  }).map(row => {
+    // Convert numeric strings to actual numbers
+    const processedRow: any = { ...row };
+    
+    Object.keys(processedRow).forEach(key => {
+      if (key !== 'date') {
+        const val = processedRow[key];
+        if (val !== null && val !== undefined && !isNaN(parseFloat(val))) {
+          processedRow[key] = parseFloat(val);
+        }
+      }
+    });
+    
+    return processedRow;
+  });
+};
+
+// Function to identify numeric columns in dataset
+export const getNumericColumns = (data: any[]): string[] => {
+  if (!data || data.length === 0) return [];
+  
+  const firstRow = data[0];
+  return Object.keys(firstRow).filter(key => {
+    if (key === 'date') return false;
+    
+    // Check if column has numeric values
+    return data.some(row => {
+      const val = row[key];
+      return val !== null && val !== undefined && !isNaN(parseFloat(val));
+    });
+  });
+};
+
+// Function to get data statistics for better visualization
+export const getDataStats = (data: any[], column: string) => {
+  if (!data || data.length === 0 || !column) {
+    return { min: 0, max: 0, avg: 0 };
+  }
+  
+  const values = data
+    .filter(row => row[column] !== undefined && row[column] !== null)
+    .map(row => parseFloat(row[column]));
+  
+  if (values.length === 0) {
+    return { min: 0, max: 0, avg: 0 };
+  }
+  
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const sum = values.reduce((acc, val) => acc + val, 0);
+  const avg = sum / values.length;
+  
+  return { min, max, avg };
+};

@@ -1,8 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getNumericColumns, preprocessData } from '@/services/forecastService';
 
 interface DataPreviewProps {
   data: {
@@ -20,9 +21,20 @@ interface DataPreviewProps {
 
 const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
   const [selectedColumn, setSelectedColumn] = useState<string>('');
+  const [processedData, setProcessedData] = useState<any[]>([]);
+  const [numericColumns, setNumericColumns] = useState<string[]>([]);
   
-  // Get non-date columns
-  const timeSeriesColumns = data.columns.filter(col => col !== 'date');
+  // Process data on mount and when data changes
+  useEffect(() => {
+    if (data && data.data) {
+      const preprocessed = preprocessData(data.data);
+      setProcessedData(preprocessed);
+      
+      // Get numeric columns for analysis
+      const columns = getNumericColumns(preprocessed);
+      setNumericColumns(columns);
+    }
+  }, [data]);
   
   // Handle column selection
   const handleColumnChange = (value: string) => {
@@ -61,7 +73,7 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
                 <SelectValue placeholder="Select column" />
               </SelectTrigger>
               <SelectContent>
-                {timeSeriesColumns.map((column) => (
+                {numericColumns.map((column) => (
                   <SelectItem key={column} value={column}>
                     {column}
                   </SelectItem>
@@ -88,7 +100,7 @@ const DataPreview = ({ data, onColumnSelect }: DataPreviewProps) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.data.slice(0, 5).map((row, i) => (
+              {processedData.slice(0, 5).map((row, i) => (
                 <TableRow key={i}>
                   {data.columns.map((column) => (
                     <TableCell 

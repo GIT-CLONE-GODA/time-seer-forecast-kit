@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import FileUpload from '@/components/FileUpload';
 import DataPreview from '@/components/DataPreview';
@@ -8,16 +8,29 @@ import ModelConfiguration, { ModelConfig } from '@/components/ModelConfiguration
 import ModelResults from '@/components/ModelResults';
 import { useToast } from '@/hooks/use-toast';
 import { CalendarClock } from 'lucide-react';
-import { runForecast, prepareTimeSeriesData } from '@/services/forecastService';
+import { runForecast, prepareTimeSeriesData, preprocessData } from '@/services/forecastService';
 
 const Index = () => {
   const { toast } = useToast();
   const [data, setData] = useState<any | null>(null);
+  const [processedData, setProcessedData] = useState<any | null>(null);
   const [selectedColumn, setSelectedColumn] = useState<string>('');
   const [modelConfig, setModelConfig] = useState<ModelConfig | null>(null);
   const [modelResults, setModelResults] = useState<any | null>(null);
   const [predictions, setPredictions] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Process data when it changes
+  useEffect(() => {
+    if (data && data.data) {
+      // Apply preprocessing to the data
+      const processed = {
+        ...data,
+        data: preprocessData(data.data)
+      };
+      setProcessedData(processed);
+    }
+  }, [data]);
 
   const handleFileUploaded = (fileData: any) => {
     // Validate data has necessary columns
@@ -45,7 +58,7 @@ const Index = () => {
   };
 
   const handleRunModel = async (config: ModelConfig) => {
-    if (!data || !selectedColumn) {
+    if (!processedData || !selectedColumn) {
       toast({
         title: "Error",
         description: "Please upload data and select a column first.",
@@ -58,7 +71,7 @@ const Index = () => {
 
     try {
       // Prepare request data
-      const timeSeriesData = prepareTimeSeriesData(data.data, selectedColumn);
+      const timeSeriesData = prepareTimeSeriesData(processedData.data, selectedColumn);
       
       if (timeSeriesData.length === 0) {
         throw new Error("No valid data points found for the selected column");
@@ -95,8 +108,8 @@ const Index = () => {
       });
       
       // Add forecast values to the data
-      const updatedData = [...data.data];
-      const trainSizeIndex = Math.floor(data.data.length * config.trainSize);
+      const updatedData = [...processedData.data];
+      const trainSizeIndex = Math.floor(processedData.data.length * config.trainSize);
       
       response.forecast.forEach((value: number, i: number) => {
         const dataIndex = trainSizeIndex + i;
@@ -146,7 +159,9 @@ const Index = () => {
             
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <DataPreview data={data} onColumnSelect={handleColumnSelect} />
+                {processedData && (
+                  <DataPreview data={processedData} onColumnSelect={handleColumnSelect} />
+                )}
               </div>
               
               {selectedColumn && (
@@ -156,10 +171,10 @@ const Index = () => {
               )}
             </div>
             
-            {selectedColumn && (
+            {selectedColumn && processedData && (
               <div className="grid gap-6">
                 <TimeSeriesChart 
-                  data={data.data} 
+                  data={processedData.data} 
                   selectedColumn={selectedColumn}
                   predictions={predictions}
                 />

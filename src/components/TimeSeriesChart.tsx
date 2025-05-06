@@ -1,8 +1,9 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { getDataStats } from '@/services/forecastService';
 
 interface TimeSeriesChartProps {
   data: any[];
@@ -14,6 +15,12 @@ interface TimeSeriesChartProps {
 }
 
 const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartProps) => {
+  // Get data statistics for better scaling
+  const dataStats = useMemo(() => 
+    getDataStats(data, selectedColumn),
+    [data, selectedColumn]
+  );
+  
   // Format data for the charts
   const chartData = [...data];
   
@@ -64,6 +71,32 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
     });
   }
   
+  // Calculate better Y domain for the chart based on data and predictions
+  const calculateYDomain = () => {
+    const values = data
+      .filter(d => d[selectedColumn] !== null && d[selectedColumn] !== undefined)
+      .map(d => d[selectedColumn]);
+    
+    // Include forecast values if they exist
+    if (predictions && predictions.forecast) {
+      values.push(...predictions.forecast);
+    }
+    
+    if (values.length === 0) return [0, 100];
+    
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    
+    // Add some padding (10%)
+    const padding = (max - min) * 0.1;
+    const yMin = Math.max(0, min - padding); // Don't go below 0 unless data does
+    const yMax = max + padding;
+    
+    return [yMin, yMax];
+  };
+  
+  const yDomain = calculateYDomain();
+  
   // Custom formatter for y-axis values
   const formatYAxis = (value: number): string => {
     if (value >= 1000000) {
@@ -72,6 +105,25 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
       return `${(value / 1000).toFixed(0)}K`;
     }
     return value.toString();
+  };
+  
+  // Sample data points for X-axis ticks (to avoid overcrowding)
+  const getXAxisTicks = (data: any[]) => {
+    if (!data || data.length <= 6) return undefined;
+    
+    const tickIndexes = [];
+    const step = Math.ceil(data.length / 6);
+    
+    for (let i = 0; i < data.length; i += step) {
+      tickIndexes.push(i);
+    }
+    
+    // Always include the last point
+    if (!tickIndexes.includes(data.length - 1)) {
+      tickIndexes.push(data.length - 1);
+    }
+    
+    return tickIndexes.map(i => data[i]?.date);
   };
   
   // Custom tooltip formatter
@@ -125,14 +177,21 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
             <ResponsiveContainer width="100%" height="100%" className="time-series-chart">
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} tickMargin={10} />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 12 }} 
+                  tickMargin={10}
+                  ticks={getXAxisTicks(chartData)}
+                />
                 <YAxis 
                   tickFormatter={formatYAxis}
                   width={60}
                   tick={{ fontSize: 12 }}
+                  domain={yDomain}
                 />
                 <Tooltip content={renderTooltip} />
                 <Legend />
+                <ReferenceLine y={dataStats.avg} stroke="#888" strokeDasharray="3 3" label="Average" />
                 <Line
                   type="monotone"
                   dataKey={selectedColumn}
@@ -151,14 +210,21 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
             <ResponsiveContainer width="100%" height="100%" className="time-series-chart">
               <LineChart data={combinedData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} tickMargin={10} />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 12 }} 
+                  tickMargin={10}
+                  ticks={getXAxisTicks(combinedData)}
+                />
                 <YAxis 
                   tickFormatter={formatYAxis}
                   width={60}
                   tick={{ fontSize: 12 }}
+                  domain={yDomain}
                 />
                 <Tooltip content={renderTooltip} />
                 <Legend />
+                <ReferenceLine y={dataStats.avg} stroke="#888" strokeDasharray="3 3" label="Average" />
                 <Line
                   type="monotone"
                   dataKey={`${selectedColumn}_training`}
@@ -193,14 +259,21 @@ const TimeSeriesChart = ({ data, selectedColumn, predictions }: TimeSeriesChartP
               <ResponsiveContainer width="100%" height="100%" className="time-series-chart">
                 <LineChart data={forecastData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} tickMargin={10} />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 12 }} 
+                    tickMargin={10}
+                    ticks={getXAxisTicks(forecastData)}
+                  />
                   <YAxis 
                     tickFormatter={formatYAxis}
                     width={60}
                     tick={{ fontSize: 12 }}
+                    domain={yDomain}
                   />
                   <Tooltip content={renderTooltip} />
                   <Legend />
+                  <ReferenceLine y={dataStats.avg} stroke="#888" strokeDasharray="3 3" label="Average" />
                   <Line
                     type="monotone"
                     dataKey={selectedColumn}

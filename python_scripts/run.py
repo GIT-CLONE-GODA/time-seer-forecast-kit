@@ -1,5 +1,3 @@
-
-
 import os
 import subprocess
 import sys
@@ -27,12 +25,14 @@ def start_app():
     # Generate sample data if it doesn't exist
     if not os.path.exists('sample_housing_prices.csv'):
         print("Generating sample data for testing...")
-        import sample_data
+        import sample_data as sample_data
         sample_data.generate_sample_data()
     
     # Start the Streamlit app
     print("Launching Streamlit application...")
-    subprocess.call(["streamlit", "run", "app.py"])
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    app_path = os.path.join(script_dir, "app.py")
+    subprocess.call(["streamlit", "run", app_path])
 
 if __name__ == "__main__":
     start_app() 

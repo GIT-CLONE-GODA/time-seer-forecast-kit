@@ -11,7 +11,7 @@ from contextlib import redirect_stdout
 sys.path.append(os.path.join(os.path.dirname(__file__), "python_scripts"))
 
 # Import the ARIMATimeSeriesAnalyzer class from main.py
-from python_scripts.main import ARIMATimeSeriesAnalyzer
+from main import ARIMATimeSeriesAnalyzer
 
 # Import the sample data generator
 from sample_data import generate_sample_data
